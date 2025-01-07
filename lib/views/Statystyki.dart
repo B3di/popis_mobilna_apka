@@ -258,6 +258,12 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
                             _value = int.tryParse(value) ?? 10;
                           });
                         },
+                        onSubmitted: (value) {
+                          setState(() {
+                            _value = int.tryParse(value) ?? 10;
+                            _loadCommittees();
+                          });
+                        },
                       ),
                     ),
                   ),
@@ -404,6 +410,12 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
                         _value = int.tryParse(value) ?? 10;
                       });
                     },
+                    onSubmitted: (value) {
+                    setState(() {
+                      _value = int.tryParse(value) ?? 10;
+                      _loadCommittees();
+                    });
+                  },
                   ),
                 ),
               ),

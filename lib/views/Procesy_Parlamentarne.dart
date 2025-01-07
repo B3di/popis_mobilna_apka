@@ -598,8 +598,15 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
                         _selectedTerm = int.tryParse(value) ?? 10;
                       });
                     },
+                    onSubmitted: (value) {
+                      setState(() {
+                        _selectedTerm = int.tryParse(value) ?? 10;
+                      });
+                      fetchCommittees();
+                    },
                   ),
                 ),
+
                 const SizedBox(width: 8),
                 InkWell(
                   onTap: () {
