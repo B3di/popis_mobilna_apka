@@ -183,16 +183,20 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildMetricTile(
-                'Ilość potencjalnych koalicji', totalCoalitions.toString()),
-            _buildMetricTile('Minimalna ilość posłów', minPoslow.toString()),
-            _buildMetricTile('Maksymalna ilość posłów', maxPoslow.toString()),
+                ' Ilość potencjalnych koalicji  ', totalCoalitions.toString(),
+                fontSize: 4.0),
+            _buildMetricTile('Minimalna ilość posłów  ', minPoslow.toString(),
+                fontSize: 4.0),
+            _buildMetricTile('Maksymalna ilość posłów', maxPoslow.toString(),
+                fontSize: 4.0),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMetricTile(String title, String value) {
+  Widget _buildMetricTile(String title, String value,
+      {required double fontSize}) {
     return Column(
       children: [
         Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
