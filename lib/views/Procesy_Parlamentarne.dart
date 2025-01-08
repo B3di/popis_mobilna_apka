@@ -13,9 +13,12 @@ class View2 extends StatefulWidget {
 class _View2State extends State<View2> with SingleTickerProviderStateMixin {
   final InterpelationController _interpelationController =
       InterpelationController(); // Kontroler do obsługi API
-  final TextEditingController _interpelationController2 = TextEditingController(text: '1');
-  final TextEditingController _termController = TextEditingController(text: '10');
-  final TextEditingController _yearController = TextEditingController(text: DateTime.now().year.toString());
+  final TextEditingController _interpelationController2 =
+      TextEditingController(text: '1');
+  final TextEditingController _termController =
+      TextEditingController(text: '10');
+  final TextEditingController _yearController =
+      TextEditingController(text: DateTime.now().year.toString());
 
   final CommitteeController _committeeController =
       CommitteeController(); // Tworzymy instancję dla kontrolera komisji
@@ -531,8 +534,8 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
             _isLoading
                 ? CircularProgressIndicator()
                 : _interpelationDetails == null
-                ? Text('Wprowadź dane i kliknij "Pokaż szczegóły".')
-                : _buildInterpelationDetails(),
+                    ? Text('Wprowadź dane i kliknij "Pokaż szczegóły".')
+                    : _buildInterpelationDetails(),
           ],
         ),
       ),
@@ -543,6 +546,9 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
     if (_interpelationDetails == null) {
       return Text('Brak szczegółów do wyświetlenia.');
     }
+
+    final attachments =
+        _interpelationDetails!['attachments'] as Iterable<String?>? ?? [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -559,37 +565,37 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         Text(_interpelationDetails!['response'] ?? 'Brak odpowiedzi'),
-        if (_interpelationDetails!['attachments'] != null && _interpelationDetails!['attachments'].isNotEmpty)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 8),
-              Text(
-                'Załączniki:',
-                style: TextStyle(fontWeight: FontWeight.bold),
+        SizedBox(height: 8),
+        Text(
+          'Załączniki:',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        ...attachments.map((url) {
+          if (url != null) {
+            return InkWell(
+              onTap: () => _launchUrl(url),
+              child: Text(
+                url,
+                style: TextStyle(
+                    color: Colors.blue, decoration: TextDecoration.underline),
               ),
-              // Filter out null values and convert to List<String>
-              ...(_interpelationDetails!['attachments'].where((attachment) => attachment != null).cast<String>().toList()).map((attachment) {
-                return GestureDetector(
-                  onTap: () async {
-                    if (await canLaunchUrl(Uri.parse(attachment))) {
-                      await launchUrl(Uri.parse(attachment));
-                    } else {
-                      throw 'Could not launch $attachment';
-                    }
-                  },
-                  child: Text(
-                    attachment,
-                    style: TextStyle(color: Colors.blue),
-                  ),
-                );
-              }).toList(),
-            ],
-          )
-        else
-          Text('Brak załączników'),
+            );
+          } else {
+            return Text('Brak załączników');
+          }
+        }),
       ],
     );
+  }
+
+// Funkcja pomocnicza do otwierania URL
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      throw Exception('Nie udało się otworzyć linku: $url');
+    }
   }
 
   Widget _buildCommitteesTab() {
@@ -636,7 +642,6 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
                     },
                   ),
                 ),
-
                 const SizedBox(width: 8),
                 InkWell(
                   onTap: () {
@@ -644,11 +649,9 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
                       _selectedTerm = _selectedTerm > 1 ? _selectedTerm - 1 : 1;
                       _termController.text = _selectedTerm.toString();
                       _selectedCommittee = null; // Resetowanie wybranej komisji
-
                     });
                     fetchCommittees();
                   },
-
                   child: Container(
                     width: 70,
                     height: 50,
@@ -659,7 +662,6 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
                     ),
                     child: Icon(Icons.remove, color: Colors.white),
                   ),
-
                 ),
                 const SizedBox(width: 8),
                 InkWell(
@@ -700,7 +702,6 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
                         hint: const Text('Wybierz komisję'),
                         items: _committees
                             .map((committee) => DropdownMenuItem<String>(
-
                                   value: committee['code'],
                                   child: Text(committee['name']),
                                 ))
@@ -861,27 +862,27 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
             _isLoading
                 ? CircularProgressIndicator()
                 : _legislativeProcesses.isEmpty
-                ? Text('Brak dostępnych procesów legislacyjnych.')
-                : DropdownButton<String>(
-              isExpanded: true,
-              value: _selectedProcess,
-              hint: Text('Wybierz proces legislacyjny'),
-              items: _legislativeProcesses.map((process) {
-                final processNumber = process['number'];
-                return DropdownMenuItem<String>(
-                  value: processNumber,
-                  child: Text('$processNumber - ${process['title']}'),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedProcess = value;
-                });
-                if (value != null) {
-                  fetchProcessDetails(value);
-                }
-              },
-            ),
+                    ? Text('Brak dostępnych procesów legislacyjnych.')
+                    : DropdownButton<String>(
+                        isExpanded: true,
+                        value: _selectedProcess,
+                        hint: Text('Wybierz proces legislacyjny'),
+                        items: _legislativeProcesses.map((process) {
+                          final processNumber = process['number'];
+                          return DropdownMenuItem<String>(
+                            value: processNumber,
+                            child: Text('$processNumber - ${process['title']}'),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedProcess = value;
+                          });
+                          if (value != null) {
+                            fetchProcessDetails(value);
+                          }
+                        },
+                      ),
             SizedBox(height: 16),
             _processDetails == null
                 ? Text('Wybierz proces, aby zobaczyć szczegóły.')
@@ -913,7 +914,8 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
                     ),
                     onChanged: (value) {
                       setState(() {
-                        _selectedYear = int.tryParse(value) ?? DateTime.now().year;
+                        _selectedYear =
+                            int.tryParse(value) ?? DateTime.now().year;
                       });
                     },
                   ),
@@ -971,20 +973,21 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
             _isLoading
                 ? CircularProgressIndicator()
                 : _latestLaws.isEmpty
-                ? Text('Brak dostępnych aktów prawnych.')
-                : SizedBox(
-              height: MediaQuery.of(context).size.height * 0.5, // Ustawienie wysokości na połowę ekranu // Ustalona wysokość dla przewijanej listy
-              child: ListView.builder(
-                itemCount: _latestLaws.length,
-                itemBuilder: (context, index) {
-                  final law = _latestLaws[index];
-                  return ListTile(
-                    title: Text(law['title']),
-                    subtitle: Text('Typ: ${law['type']}'),
-                  );
-                },
-              ),
-            ),
+                    ? Text('Brak dostępnych aktów prawnych.')
+                    : SizedBox(
+                        height: MediaQuery.of(context).size.height *
+                            0.5, // Ustawienie wysokości na połowę ekranu // Ustalona wysokość dla przewijanej listy
+                        child: ListView.builder(
+                          itemCount: _latestLaws.length,
+                          itemBuilder: (context, index) {
+                            final law = _latestLaws[index];
+                            return ListTile(
+                              title: Text(law['title']),
+                              subtitle: Text('Typ: ${law['type']}'),
+                            );
+                          },
+                        ),
+                      ),
           ],
         ),
       ),
