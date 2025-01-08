@@ -259,21 +259,39 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
 
   /// Wykres kołowy
   Widget _buildPieChart(List<Map<String, dynamic>> coalition) {
+    // Oblicz sumę członków dla procentów
+    final totalMembers = coalition.fold<int>(
+      0,
+      (sum, club) => sum + club['membersCount'] as int,
+    );
+
     List<PieChartSectionData> pieData = coalition.map((club) {
+      final double percentage = (club['membersCount'] / totalMembers) * 100;
+
       return PieChartSectionData(
         value: club['membersCount'].toDouble(),
-        title: club['id'],
+        title: "${percentage.toStringAsFixed(1)}%", // Procent w tytule
         color: Colors.primaries[club['id'].hashCode % Colors.primaries.length],
         radius: 50,
         titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        badgeWidget: Text(
+          club['id'],
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        ),
+        badgePositionPercentageOffset: 1.5, // Etykieta poza segmentem
       );
     }).toList();
 
-    return PieChart(
-      PieChartData(
-        sections: pieData,
-        centerSpaceRadius: 30,
-        sectionsSpace: 2,
+    return Padding(
+      padding: const EdgeInsets.all(16.0), // Odstęp dla lepszego wyglądu
+      child: PieChart(
+        PieChartData(
+          sections: pieData,
+          centerSpaceRadius: 40, // Większa przestrzeń w środku
+          sectionsSpace: 3, // Drobne odstępy między segmentami
+          borderData: FlBorderData(show: false), // Wyłączenie obramowania
+          startDegreeOffset: 270, // Start od góry koła
+        ),
       ),
     );
   }
@@ -1048,18 +1066,6 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
                 style: TextStyle(color: Colors.red, fontSize: 12),
               ),
             ),
-            Tab(
-              child: Text(
-                'Korelacje Wyborcze',
-                style: TextStyle(color: Colors.red, fontSize: 12),
-              ),
-            ),
-            Tab(
-              child: Text(
-                'Prawo Benforda',
-                style: TextStyle(color: Colors.red, fontSize: 12),
-              ),
-            ),
           ],
         ),
       ),
@@ -1068,8 +1074,6 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
         children: [
           _buildPotentialCoalitionTab(),
           _buildElectionCalculatorTab(),
-          _buildTabContent('Korelacje Wyborcze'),
-          _buildTabContent('Prawo Benforda'),
         ],
       ),
     );
