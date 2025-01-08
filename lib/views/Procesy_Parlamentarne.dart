@@ -612,7 +612,9 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
                   onTap: () {
                     setState(() {
                       _selectedTerm = _selectedTerm > 1 ? _selectedTerm - 1 : 1;
+                      _termController.text = _selectedTerm.toString();
                       _selectedCommittee = null; // Resetowanie wybranej komisji
+
                     });
                     fetchCommittees();
                   },
@@ -634,6 +636,7 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
                   onTap: () {
                     setState(() {
                       _selectedTerm++;
+                      _termController.text = _selectedTerm.toString();
                       _selectedCommittee = null; // Resetowanie wybranej komisji
                     });
                     fetchCommittees();
