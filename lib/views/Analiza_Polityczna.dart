@@ -25,167 +25,257 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
 
   Widget _buildPotentialCoalitionTab() {
     return FutureBuilder(
-      future: findMinimalCoalitions(10), // Default term number
-      builder: (context, AsyncSnapshot<List<List<Map<String, dynamic>>>> snapshot) {
+      future: findMinimalCoalitions(10), // Możesz tu podać np. termNumber
+      builder:
+          (context, AsyncSnapshot<List<List<Map<String, dynamic>>>> snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator());
         } else if (snapshot.hasError) {
           return Center(child: Text('Błąd: ${snapshot.error}'));
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Center(child: Text('Brak danych'));
+          return const Center(child: Text('Brak danych'));
         }
 
-        var coalitions = snapshot.data!;
-        List<Map<String, dynamic>> coalitionData = coalitions.map((coalition) {
+        // Tu używamy innej nazwy niż "coalitions", aby nie kolidowało z polem klasy:
+        final fetchedCoalitions = snapshot.data!;
+
+        // Mamy listę: List<List<Map<String, dynamic>>>. Każdy element to pojedyncza koalicja
+        // (czyli lista klubów). Mapujemy ją na nasz obiekt do tabeli:
+        List<Map<String, dynamic>> coalitionData =
+            fetchedCoalitions.map((coalition) {
+          final total = coalition
+              .map((club) => club['membersCount'] as int)
+              .reduce((a, b) => a + b);
+
+          final largest = coalition
+              .map((club) => club['membersCount'] as int)
+              .reduce(math.max);
+
+          final ratio = total > 0 ? (largest / total) * 100.0 : 0.0;
+
           return {
-            'ProcentNajwiekszyKlub': (coalition.map((club) => club['membersCount'] as int).reduce((a, b) => a > b ? a : b) /
-                coalition.map((club) => club['membersCount'] as int).reduce((a, b) => a + b) * 100).toStringAsFixed(2),
+            'ProcentNajwiekszyKlub': ratio.toStringAsFixed(2),
             'Kluby': coalition.map((club) => club['id'] as String).join(', '),
-            'LacznaIloscPoslow': coalition.map((club) => club['membersCount'] as int).reduce((a, b) => a + b),
-            'IloscKlubow': coalition.length
+            'LacznaIloscPoslow': total,
+            'IloscKlubow': coalition.length,
           };
         }).toList();
 
         return Column(
           children: [
+            // TABELA
             Expanded(
-              child: _buildDataTable(coalitionData),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SingleChildScrollView(
+                  child: _buildDataTable(coalitionData),
+                ),
+              ),
             ),
+            // Metryki
             _buildMetrics(coalitionData),
-            _buildCoalitionSelector(context, coalitions),
+            // Selektor koalicji
+            _buildCoalitionSelector(context, fetchedCoalitions),
           ],
         );
       },
     );
   }
 
+  /// TABELA
   Widget _buildDataTable(List<Map<String, dynamic>> coalitionData) {
-    return DataTable(
-      columns: const [
-        DataColumn(label: Text('Procent Największy Klub')),
-        DataColumn(label: Text('Kluby')),
-        DataColumn(label: Text('Łączna Ilość Posłów')),
-        DataColumn(label: Text('Ilość Klubów')),
-      ],
-      rows: coalitionData.map((data) {
-        return DataRow(cells: [
-          DataCell(Text(data['ProcentNajwiekszyKlub'])),
-          DataCell(Text(data['Kluby'])),
-          DataCell(Text(data['LacznaIloscPoslow'].toString())),
-          DataCell(Text(data['IloscKlubow'].toString())),
-        ]);
-      }).toList(),
-    );
-  }
-
-  Widget _buildMetrics(List<Map<String, dynamic>> coalitionData) {
-    int totalCoalitions = coalitionData.length;
-    int minPoslow = coalitionData.map((data) => data['LacznaIloscPoslow'] as int).reduce((a, b) => a < b ? a : b);
-    print (coalitionData.map((data) => data['LacznaIloscPoslow'] as int));
-    int maxPoslow = coalitionData.map((data) => data['LacznaIloscPoslow'] as int).reduce((a, b) => a > b ? a : b);
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildMetricTile('Ilość potencjalnych koalicji', totalCoalitions.toString()),
-        _buildMetricTile('Minimalna ilość posłów', minPoslow.toString()),
-        _buildMetricTile('Maksymalna ilość posłów', maxPoslow.toString()),
-      ],
-    );
-  }
-
-  Widget _buildMetricTile(String title, String value) {
-    return Column(
-      children: [
-        Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
-        SizedBox(height: 8),
-        Text(value, style: TextStyle(fontSize: 24)),
-      ],
-    );
-  }
-
-  Widget _buildCoalitionSelector(BuildContext context, List<List<Map<String, dynamic>>> coalitions) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Column(
-        children: [
-          Text("Szczegóły Koalicji", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          DropdownButton<int>(
-            items: List.generate(
-              coalitions.length,
-                  (index) => DropdownMenuItem(value: index, child: Text('Koalicja nr ${index + 1}')),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: 16.0, // Dodanie odstępów między kolumnami
+        columns: const [
+          DataColumn(
+            label: Expanded(
+              child: Text(
+                'Procent Największy Klub',
+                softWrap: true,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
-            onChanged: (value) {
-              if (value != null) {
-            //    _showCoalitionDetails(context, coalitions[value]);
-              }
-            },
-            hint: Text("Wybierz koalicję"),
+          ),
+          DataColumn(
+            label: Expanded(
+              child: Text(
+                'Kluby',
+                softWrap: true,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          DataColumn(
+            label: Expanded(
+              child: Text(
+                'Łączna Ilość Posłów',
+                softWrap: true,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          DataColumn(
+            label: Expanded(
+              child: Text(
+                'Ilość Klubów',
+                softWrap: true,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
         ],
+        rows: coalitionData.map((data) {
+          return DataRow(cells: [
+            DataCell(Center(
+              child: Text(
+                data['ProcentNajwiekszyKlub'],
+                textAlign: TextAlign.center,
+              ),
+            )),
+            DataCell(SizedBox(
+              width: 200.0, // Ustawienie maksymalnej szerokości dla kolumny
+              child: Text(
+                data['Kluby'],
+                softWrap: true,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            )),
+            DataCell(Center(
+              child: Text(
+                data['LacznaIloscPoslow'].toString(),
+                textAlign: TextAlign.center,
+              ),
+            )),
+            DataCell(Center(
+              child: Text(
+                data['IloscKlubow'].toString(),
+                textAlign: TextAlign.center,
+              ),
+            )),
+          ]);
+        }).toList(),
       ),
     );
   }
 
+  /// Metryki: liczba koalicji, min i max posłów
+  Widget _buildMetrics(List<Map<String, dynamic>> coalitionData) {
+    int totalCoalitions = coalitionData.length;
+    int minPoslow = coalitionData
+        .map((data) => data['LacznaIloscPoslow'] as int)
+        .reduce(math.min);
+    int maxPoslow = coalitionData
+        .map((data) => data['LacznaIloscPoslow'] as int)
+        .reduce(math.max);
 
-
-  void _showCoalitionDetails(BuildContext context, List<Map<String, dynamic>> coalition) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal, // Dodajemy przewijanie
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            //Expanded(
-            //  child: _buildBarChart(coalition),
-            //),
-            SizedBox(height: 16),
-            Expanded(
-              child: _buildPieChart(coalition),
-            ),
+            _buildMetricTile(
+                'Ilość potencjalnych koalicji', totalCoalitions.toString()),
+            _buildMetricTile('Minimalna ilość posłów', minPoslow.toString()),
+            _buildMetricTile('Maksymalna ilość posłów', maxPoslow.toString()),
           ],
         ),
       ),
     );
   }
 
-  //Widget _buildBarChart(List<Map<String, dynamic>> coalition) {
-  //  List<BarChartGroupData> barData = coalition
-  //      .asMap()
-  //      .entries
-  //      .map((entry) => BarChartGroupData(
-  //    x: entry.key,
-  //    barRods: [
-  //      BarChartRodData(y: entry.value['membersCount'].toDouble(), colors: [Colors.blue]),
-  //    ],
-  //  ))
-  //      .toList();
-//
-  //  return BarChart(BarChartData(
-  //    barGroups: barData,
-  //    titlesData: FlTitlesData(
-  //      leftTitles: SideTitles(showTitles: true),
-  //      bottomTitles: SideTitles(showTitles: true, getTitles: (value) {
-  //        return coalition[value.toInt()]['id'];
-  //      }),
-  //    ),
-  //  ));
-  //}
+  Widget _buildMetricTile(String title, String value) {
+    return Column(
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(fontSize: 20)),
+      ],
+    );
+  }
 
+  /// Dropdown do wyboru koalicji
+  Widget _buildCoalitionSelector(
+    BuildContext context,
+    List<List<Map<String, dynamic>>> potentialCoalitions,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        children: [
+          const Text(
+            "Szczegóły Koalicji",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          DropdownButton<int>(
+            items: List.generate(
+              potentialCoalitions.length,
+              (index) => DropdownMenuItem(
+                value: index,
+                child: Text('Koalicja nr ${index + 1}'),
+              ),
+            ),
+            onChanged: (value) {
+              if (value != null) {
+                _showCoalitionDetails(context, potentialCoalitions[value]);
+              }
+            },
+            hint: const Text("Wybierz koalicję"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// BottomSheet z wykresem kołowym
+  void _showCoalitionDetails(
+    BuildContext context,
+    List<Map<String, dynamic>> coalition,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Można wstawić wykres słupkowy, jeśli potrzebny:
+            // Expanded(child: _buildBarChart(coalition)),
+
+            const SizedBox(height: 16),
+            Expanded(child: _buildPieChart(coalition)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Wykres kołowy
   Widget _buildPieChart(List<Map<String, dynamic>> coalition) {
-    List<PieChartSectionData> pieData = coalition
-        .map((club) =>
-        PieChartSectionData(
-          value: club['membersCount'].toDouble(),
-          title: club['id'],
-          color: Colors.primaries[club['id'].hashCode %
-              Colors.primaries.length],
-        ))
-        .toList();
+    List<PieChartSectionData> pieData = coalition.map((club) {
+      return PieChartSectionData(
+        value: club['membersCount'].toDouble(),
+        title: club['id'],
+        color: Colors.primaries[club['id'].hashCode % Colors.primaries.length],
+        radius: 50,
+        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+      );
+    }).toList();
 
-    return PieChart(PieChartData(
-      sections: pieData,
-    ));
+    return PieChart(
+      PieChartData(
+        sections: pieData,
+        centerSpaceRadius: 30,
+        sectionsSpace: 2,
+      ),
+    );
   }
 
   // -------------------------------------------------------
