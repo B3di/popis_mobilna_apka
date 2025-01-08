@@ -382,6 +382,7 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
       "okręg",
       "województwo"
     ];
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -389,7 +390,6 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
         children: [
           Text("Kadencja sejmu", style: TextStyle(fontSize: 18)),
           SizedBox(height: 8),
-          // ... UI do zmiany numeru kadencji ...
           Row(
             children: [
               Expanded(
@@ -411,11 +411,11 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
                       });
                     },
                     onSubmitted: (value) {
-                    setState(() {
-                      _value = int.tryParse(value) ?? 10;
-                      _loadCommittees();
-                    });
-                  },
+                      setState(() {
+                        _value = int.tryParse(value) ?? 10;
+                        _loadCommittees();
+                      });
+                    },
                   ),
                 ),
               ),
@@ -426,6 +426,7 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
                   onPressed: () {
                     setState(() {
                       if (_poslowieTermNumber > 1) _poslowieTermNumber--;
+                      _termController.text = _poslowieTermNumber.toString();
                       _loadMpsData(_poslowieTermNumber);
                     });
                   },
@@ -444,6 +445,7 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
                   onPressed: () {
                     setState(() {
                       _poslowieTermNumber++;
+                      _termController.text = _poslowieTermNumber.toString();
                       _loadMpsData(_poslowieTermNumber);
                     });
                   },
@@ -463,50 +465,51 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
           else if (_mpsList.isEmpty)
             Text("Brak danych dla kadencji $_poslowieTermNumber")
           else ...[
-            Text("Wybierz statystykę:", style: TextStyle(fontSize: 16)),
-            DropdownButton<String>(
-              isExpanded: true,
-              value: _selectedMpStat,
-              items: statsOptions
-                  .map(
-                      (o) => DropdownMenuItem<String>(value: o, child: Text(o)))
-                  .toList(),
-              onChanged: (val) {
-                setState(() {
-                  _selectedMpStat = val!;
-                });
-              },
-            ),
-            SizedBox(height: 16),
-            Text("Wybierz posła:", style: TextStyle(fontSize: 16)),
-            DropdownButton<String>(
-              isExpanded: true,
-              value: _selectedMp.isEmpty ? null : _selectedMp,
-              items: _mpNames
-                  .map(
-                      (n) => DropdownMenuItem<String>(value: n, child: Text(n)))
-                  .toList(),
-              onChanged: (val) async {
-                setState(() {
-                  _selectedMp = val!;
-                });
-                final selectedMpObject = _findMpByString(val!);
-                if (selectedMpObject != null) {
-                  await _loadMpHistory(selectedMpObject, _poslowieTermNumber);
-                }
-              },
-            ),
-            SizedBox(height: 16),
-            if (_historyOfMp.isNotEmpty) _buildMpHistoryTable(_historyOfMp),
-            SizedBox(height: 16),
-            _selectedMpStat != "brak"
-                ? _buildMpStatistics()
-                : SizedBox.shrink(),
-          ],
+              Text("Wybierz statystykę:", style: TextStyle(fontSize: 16)),
+              DropdownButton<String>(
+                isExpanded: true,
+                value: _selectedMpStat,
+                items: statsOptions
+                    .map(
+                        (o) => DropdownMenuItem<String>(value: o, child: Text(o)))
+                    .toList(),
+                onChanged: (val) {
+                  setState(() {
+                    _selectedMpStat = val!;
+                  });
+                },
+              ),
+              SizedBox(height: 16),
+              Text("Wybierz posła:", style: TextStyle(fontSize: 16)),
+              DropdownButton<String>(
+                isExpanded: true,
+                value: _selectedMp.isEmpty ? null : _selectedMp,
+                items: _mpNames
+                    .map(
+                        (n) => DropdownMenuItem<String>(value: n, child: Text(n)))
+                    .toList(),
+                onChanged: (val) async {
+                  setState(() {
+                    _selectedMp = val!;
+                  });
+                  final selectedMpObject = _findMpByString(val!);
+                  if (selectedMpObject != null) {
+                    await _loadMpHistory(selectedMpObject, _poslowieTermNumber);
+                  }
+                },
+              ),
+              SizedBox(height: 16),
+              if (_historyOfMp.isNotEmpty) _buildMpHistoryTable(_historyOfMp),
+              SizedBox(height: 16),
+              _selectedMpStat != "brak"
+                  ? _buildMpStatistics()
+                  : SizedBox.shrink(),
+            ],
         ],
       ),
     );
   }
+
 
   // Tabela z historią danego posła
   Widget _buildMpHistoryTable(List<Map<String, dynamic>> data) {
