@@ -1376,7 +1376,7 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
   // Wynik: okręg -> metoda -> partia -> mandaty
   Map<String, Map<String, Map<String, int>>> _results = {};
 
-  /// Mapa: "1" -> 12, "2" -> 8, itd.
+  /// Mapa: "1" -> 12, "2" -> 8, itd. (liczba mandatów na okręg)
   final Map<String, int> seatsPerDistrict = {
     "1": 12,
     "2": 8,
@@ -1514,7 +1514,7 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
     }
   }
 
-  /// Szuka kolumn, które zawierają "Komitet Wyborczy" lub "Koalicyjny" (nieważne wielkość liter).
+  /// Szuka kolumn zawierających "Komitet Wyborczy" lub "Koalicyjny"
   List<String> _extractPartyHeaders(List<List<dynamic>> data) {
     if (data.isEmpty) return [];
     final headers = data.first.map((e) => e.toString()).toList();
@@ -1527,10 +1527,17 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
 
   /// Główna logika obliczeń
   void _calculateResults() {
-    if (_csvRaw.isEmpty) return;
+    if (_csvRaw.isEmpty || _selectedYear == null) return;
+
+    // Skopiuj mapę `seatsPerDistrict`, aby wprowadzać zmiany w lokalnym kontekście
+    final modifiedSeatsPerDistrict = Map<String, int>.from(seatsPerDistrict);
+
+    // Korekty historyczne liczby mandatów (2001–2007)
+    if (_selectedYear! <= 2007) {
+      _adjustSeatsForYear(modifiedSeatsPerDistrict, _selectedYear!);
+    }
 
     final headerRow = _csvRaw.first.map((e) => e.toString()).toList();
-    // Znajdź kolumnę z "Okręg"
     final districtIndex = headerRow.indexWhere(
       (col) => col.toLowerCase() == "okręg",
     );
@@ -1546,13 +1553,10 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
       if (row.length <= districtIndex) continue;
 
       final districtNumber = row[districtIndex].toString();
-      // Np. "1", "2", "3"...
-
       if (!votesPerDistrict.containsKey(districtNumber)) {
         votesPerDistrict[districtNumber] = {};
       }
 
-      // Idź po nazwach partii
       for (var partyHeader in _possibleParties) {
         final colIndex = headerRow.indexOf(partyHeader);
         if (colIndex < 0 || colIndex >= row.length) continue;
@@ -1566,12 +1570,10 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
       }
     }
 
-    // Czyścimy stare wyniki
     _results.clear();
 
-    // Pętla po okręgach
     votesPerDistrict.forEach((dist, partiesMap) {
-      final seatsNum = seatsPerDistrict[dist] ?? 0;
+      final seatsNum = modifiedSeatsPerDistrict[dist] ?? 0;
       if (seatsNum <= 0) {
         debugPrint(
             "Ostrzeżenie: brak liczby mandatów w seatsPerDistrict dla okręgu $dist");
@@ -1579,13 +1581,12 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
       }
 
       final totalVotes = partiesMap.values.fold(0.0, (a, b) => a + b);
-
-      // Wyfiltrowane (przekroczyły próg)
       final Map<String, double> filtered = {};
+
+      // Filtrowanie wg progu
       partiesMap.forEach((partyName, count) {
         final p = (totalVotes == 0) ? 0 : (count / totalVotes) * 100.0;
         final isCoalition = partyName.toLowerCase().contains("koalicyjny");
-
         final neededThreshold = isCoalition ? _thresholdCoalition : _threshold;
 
         if (_exemptedParties.contains(partyName) || p >= neededThreshold) {
@@ -1601,7 +1602,6 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
       final qualifiedParties = filtered.keys.toList();
       final qualifiedVotes = filtered.values.toList();
 
-      // Liczymy 4-5 metod na raz
       final districtResult = ElectionCalc.chooseMethod(
         qualifiedDictionary: qualifiedParties,
         numberOfVotes: qualifiedVotes,
@@ -1617,7 +1617,31 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
     });
   }
 
-  /// Render tabeli z wynikami
+  void _adjustSeatsForYear(Map<String, int> seats, int year) {
+    if (year <= 2007) {
+      seats["12"] = (seats["12"] ?? 0) - 1;
+      seats["13"] = (seats["13"] ?? 0) - 1;
+      seats["18"] = (seats["18"] ?? 0) - 1;
+      seats["19"] = (seats["19"] ?? 0) - 1;
+      seats["20"] = (seats["20"] ?? 0) + 1;
+      seats["23"] = (seats["23"] ?? 0) + 1;
+      seats["28"] = (seats["28"] ?? 0) + 1;
+      seats["40"] = (seats["40"] ?? 0) + 1;
+
+      if (year <= 2001) {
+        seats["1"] = (seats["1"] ?? 0) + 1;
+        seats["8"] = (seats["8"] ?? 0) + 1;
+        seats["11"] = (seats["11"] ?? 0) - 1;
+        seats["12"] = (seats["12"] ?? 0) - 1;
+        seats["14"] = (seats["14"] ?? 0) + 1;
+        seats["19"] = (seats["19"] ?? 0) - 1;
+        seats["30"] = (seats["30"] ?? 0) + 1;
+        seats["34"] = (seats["34"] ?? 0) - 1;
+      }
+    }
+  }
+
+  /// Render tabeli z wynikami — zagregowanymi (suma z wszystkich okręgów).
   Widget _buildResultsTable() {
     if (_results.isEmpty) {
       return const Text(
@@ -1626,35 +1650,53 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
       );
     }
 
-    // Zbierz wszystkie partie, które wystąpiły
+    // 1) Zbierz wszystkie nazwy partii (dla kolumn)
     final allParties = <String>{};
-    _results.values.forEach((methodMap) {
-      methodMap.values.forEach((mapParties) {
+    _results.values.forEach((methodsMap) {
+      methodsMap.values.forEach((mapParties) {
         allParties.addAll(mapParties.keys);
       });
     });
     final allPartiesList = allParties.toList()..sort();
 
-    // Budujemy wiersze:
-    final rows = <DataRow>[];
-    _results.forEach((dist, methodsMap) {
+    // 2) Przygotuj mapę do zagregowania: Map<metoda, Map<partia, suma mandatów>>
+    final Map<String, Map<String, int>> aggregated = {};
+
+    // 3) Sumujemy z wszystkich okręgów
+    _results.forEach((district, methodsMap) {
       methodsMap.forEach((methodName, seatsMap) {
-        final cells = <DataCell>[];
-        cells.add(DataCell(Text(dist))); // np. "1"
-        cells.add(DataCell(Text(methodName))); // np. "d'Hondt"
-
-        for (final p in allPartiesList) {
-          final s = seatsMap[p] ?? 0;
-          cells.add(DataCell(Text(s.toString())));
-        }
-
-        rows.add(DataRow(cells: cells));
+        aggregated.putIfAbsent(methodName, () => {});
+        seatsMap.forEach((party, seats) {
+          aggregated[methodName]!.update(
+            party,
+            (old) => old + seats,
+            ifAbsent: () => seats,
+          );
+        });
       });
     });
 
-    // Nagłówki:
+    // 4) Budujemy wiersze tabeli (wiersz = metoda)
+    final rows = <DataRow>[];
+    final methodsSorted = aggregated.keys.toList()..sort();
+
+    for (final methodName in methodsSorted) {
+      final seatsMap = aggregated[methodName] ?? {};
+      final cells = <DataCell>[];
+
+      // Pierwsza kolumna: nazwa metody
+      cells.add(DataCell(Text(methodName)));
+
+      // Kolejne kolumny: liczba mandatów danej partii
+      for (final p in allPartiesList) {
+        final seats = seatsMap[p] ?? 0;
+        cells.add(DataCell(Text(seats.toString())));
+      }
+      rows.add(DataRow(cells: cells));
+    }
+
+    // 5) Nagłówki kolumn
     final columns = [
-      const DataColumn(label: Text("Okręg")),
       const DataColumn(label: Text("Metoda")),
       ...allPartiesList.map((p) => DataColumn(label: Text(p))),
     ];
