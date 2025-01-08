@@ -3,9 +3,10 @@ import 'dart:convert';
 
 Future<Map<String, dynamic>> getClubs(int term) async {
   final response = await http.get(Uri.parse('https://api.sejm.gov.pl/sejm/term$term/clubs'));
-  return json.decode(response.body);
+  List<dynamic> clubsList = json.decode(response.body);
+  Map<String, dynamic> clubsResponse = {'data': clubsList};
+  return clubsResponse;
 }
-
 Future<Map<String, dynamic>> getClub(int term, String id) async {
   final response = await http.get(Uri.parse('https://api.sejm.gov.pl/sejm/term$term/clubs/$id'));
   return json.decode(response.body);
@@ -16,11 +17,7 @@ Future<List<int>> getClubLogo(int term, String id) async {
   return response.bodyBytes;
 }
 
-Future<List<List<Map<String, dynamic>>>> findMinimalCoalitions({
-  int term = 10,
-  int threshold = 231,
-  int? maxCombinations,
-}) async {
+Future<List<List<Map<String, dynamic>>>> findMinimalCoalitions([int term = 10,int threshold = 231,int? maxCombinations]) async {
   final clubsResponse = await getClubs(term);
   List<Map<String, dynamic>> clubs = List<Map<String, dynamic>>.from(clubsResponse['data']);
 
