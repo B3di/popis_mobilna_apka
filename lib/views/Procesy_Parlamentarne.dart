@@ -558,6 +558,7 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         Text(_interpelationDetails!['response'] ?? 'Brak odpowiedzi'),
+        Text('Załączniki:${_interpelationDetails!['attachments']}' ?? 'Brak załączników'),
       ],
     );
   }
@@ -636,6 +637,7 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
                   onTap: () {
                     setState(() {
                       _selectedTerm++;
+                      _termController.text = _selectedTerm.toString();
                       _termController.text = _selectedTerm.toString();
                       _selectedCommittee = null; // Resetowanie wybranej komisji
                     });

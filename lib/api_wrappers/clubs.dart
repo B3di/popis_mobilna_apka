@@ -13,7 +13,7 @@ class SejmAPI {
   Future<Map<String, dynamic>> getClub(int term, String id) async {
     final url = Uri.parse('$baseUrl/term$term/clubs/$id');
     final response = await http.get(url);
-    return jsonDecode(response.body);
+    return jsonDecode(utf8.decode(response.bodyBytes));
   }
 
   Future<Uint8List> getClubLogo(int term, String id) async {
@@ -33,7 +33,7 @@ class SejmAPI {
     int? maxCombinations,
   }) async {
     final response = await getClubs(term);
-    List<dynamic> clubs = jsonDecode(response.body);
+    List<dynamic> clubs = jsonDecode(utf8.decode(response.bodyBytes));
 
     // Sortowanie – kluby z największą liczbą posłów najpierw
     clubs.sort((a, b) =>

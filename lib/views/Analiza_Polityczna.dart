@@ -306,51 +306,99 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
     );
   }
 
-  /// Wykres kołowy
   Widget _buildPieChart(List<Map<String, dynamic>> coalition) {
     final totalMembers = coalition.fold<int>(
       0,
-      (sum, club) => sum + (club['membersCount'] as int),
+          (sum, club) => sum + (club['membersCount'] as int),
     );
 
-    // Uwaga: jeśli w oryginalnym API klucz to "id", wówczas
-    //   final double percentage = ...club['membersCount'] / ...
-    //   color: Colors.primaries[club['id'].hashCode % Colors.primaries.length],
-    //
-    // a jeśli klucz to "name", to generuj np.:
-    //   color: Colors.primaries[club['name'].hashCode % Colors.primaries.length]
-    //
-    // Poniżej przykład z 'name':
+    final List<Color> expandedColors = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.red,
+      Colors.teal,
+      Colors.amber,
+      Colors.pink,
+      Colors.brown,
+      Colors.cyan,
+      Colors.deepOrange,
+      Colors.indigo,
+      Colors.lightBlue,
+      Colors.lime,
+      Colors.deepPurple,
+      Colors.yellowAccent,
+      Colors.lightGreen,
+    ];
+
+    int colorIndex = 0;
     List<PieChartSectionData> pieData = coalition.map((club) {
       final double percentage = (club['membersCount'] / totalMembers) * 100;
       return PieChartSectionData(
         value: club['membersCount'].toDouble(),
         title: "${percentage.toStringAsFixed(1)}%",
-        color:
-            Colors.primaries[club['name'].hashCode % Colors.primaries.length],
+        color: expandedColors[colorIndex++ % expandedColors.length],
         radius: 50,
         titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-        badgeWidget: Text(
-          club['name'],
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-        ),
+        //badgeWidget: Text(
+          //club['name'],
+          //style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        //),
         badgePositionPercentageOffset: 1.5,
       );
     }).toList();
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: PieChart(
-        PieChartData(
-          sections: pieData,
-          centerSpaceRadius: 40,
-          sectionsSpace: 3,
-          borderData: FlBorderData(show: false),
-          startDegreeOffset: 270,
-        ),
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: PieChart(
+                PieChartData(
+                  sections: pieData,
+                  centerSpaceRadius: 40,
+                  sectionsSpace: 3,
+                  borderData: FlBorderData(show: false),
+                  startDegreeOffset: 270,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              children: coalition.map((club) {
+                final idx = coalition.indexOf(club);
+                final color = expandedColors[idx % expandedColors.length];
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 16,
+                      height: 16,
+                      color: color,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      '${club['name']} (${club['membersCount']} posłów)',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
       ),
     );
   }
+
 
   /// -------------------------------------------------------
   /// Pozostałe zakładki: "Kalkulator Wyborczy"
