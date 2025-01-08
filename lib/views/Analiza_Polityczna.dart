@@ -46,7 +46,7 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
           final total = coalition
               .map((club) => club['membersCount'] as int)
               .reduce((a, b) => a + b);
-
+          print(total);
           final largest = coalition
               .map((club) => club['membersCount'] as int)
               .reduce(math.max);
@@ -60,7 +60,6 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
             'IloscKlubow': coalition.length,
           };
         }).toList();
-
         return Column(
           children: [
             // TABELA

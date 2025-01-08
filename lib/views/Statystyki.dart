@@ -35,7 +35,6 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
   late TabController _innerTabController;
 
   // Dla zakładki Posłowie:
-  int _poslowieTermNumber = 10;
   String _selectedMpStat = "brak";
   List<Mp> _mpsList = []; // Lista posłów jako obiekty Mp
   List<String> _mpNames = [];
@@ -55,7 +54,7 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
     _tabController = TabController(length: 2, vsync: this);
     _innerTabController = TabController(length: 2, vsync: this);
     _termController.text = '10';
-    _loadMpsData(_poslowieTermNumber); // Załaduj posłów
+    _loadMpsData(_value); // Załaduj posłów
     _loadCommittees(); // Automatyczne załadowanie komisji
   }
 
@@ -413,7 +412,8 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
                     onSubmitted: (value) {
                       setState(() {
                         _value = int.tryParse(value) ?? 10;
-                        _loadCommittees();
+                        //_termController.text = _value.toString();
+                        _loadMpsData(_value);
                       });
                     },
                   ),
@@ -425,9 +425,9 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
                 child: ElevatedButton(
                   onPressed: () {
                     setState(() {
-                      if (_poslowieTermNumber > 1) _poslowieTermNumber--;
-                      _termController.text = _poslowieTermNumber.toString();
-                      _loadMpsData(_poslowieTermNumber);
+                      if (_value > 1) _value--;
+                      _termController.text = _value.toString();
+                      _loadMpsData(_value);
                     });
                   },
                   style: ElevatedButton.styleFrom(
@@ -444,9 +444,9 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
                 child: ElevatedButton(
                   onPressed: () {
                     setState(() {
-                      _poslowieTermNumber++;
-                      _termController.text = _poslowieTermNumber.toString();
-                      _loadMpsData(_poslowieTermNumber);
+                      _value++;
+                      _termController.text = _value.toString();
+                      _loadMpsData(_value);
                     });
                   },
                   style: ElevatedButton.styleFrom(
@@ -463,7 +463,7 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
           if (_isLoadingPoslowieData)
             Center(child: CircularProgressIndicator())
           else if (_mpsList.isEmpty)
-            Text("Brak danych dla kadencji $_poslowieTermNumber")
+            Text("Brak danych dla kadencji $_value")
           else ...[
               Text("Wybierz statystykę:", style: TextStyle(fontSize: 16)),
               DropdownButton<String>(
@@ -494,7 +494,7 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
                   });
                   final selectedMpObject = _findMpByString(val!);
                   if (selectedMpObject != null) {
-                    await _loadMpHistory(selectedMpObject, _poslowieTermNumber);
+                    await _loadMpHistory(selectedMpObject, _value);
                   }
                 },
               ),
