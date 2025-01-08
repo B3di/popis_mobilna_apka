@@ -794,7 +794,7 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
   }
 
   void _loadCoalitions() async {
-    List<dynamic> fetchedCoalitions = await findMinimalCoalitions(termNumber);
+    List<dynamic> fetchedCoalitions = await findMinimalCoalitions();
     setState(() {
       coalitions = fetchedCoalitions;
     });

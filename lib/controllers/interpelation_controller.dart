@@ -123,8 +123,9 @@ class InterpelationController {
         'sentDate': json['sentDate'],
         //authors': json['from'].map<String>((author) => author['name']).toList(),
         'response': json['replies'].isNotEmpty
-            ? '${textContent}\nOdpowiedź w załączniku:\n${fileUrls.where((url) => url != null).join(', ')}'
+            ? '${textContent}'//\nOdpowiedź w załączniku:\n${fileUrls.where((url) => url != null).join(', ')}'
             : 'Brak odpowiedzi',
+        'attachments': fileUrls.where((url) => url != null),
       };
     } else {
       throw Exception('Nie udało się pobrać szczegółów interpelacji.');

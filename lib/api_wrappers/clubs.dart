@@ -1,27 +1,66 @@
-import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-Future<List<dynamic>> getClubs(int term) async {
+Future<Map<String, dynamic>> getClubs(int term) async {
   final response = await http.get(Uri.parse('https://api.sejm.gov.pl/sejm/term$term/clubs'));
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body);
-  } else {
-    throw Exception('Failed to load clubs');
-  }
+  return json.decode(response.body);
 }
 
-Future<List<dynamic>> findMinimalCoalitions(int term, {int threshold = 231}) async {
-  List<dynamic> clubs = await getClubs(term);
+Future<Map<String, dynamic>> getClub(int term, String id) async {
+  final response = await http.get(Uri.parse('https://api.sejm.gov.pl/sejm/term$term/clubs/$id'));
+  return json.decode(response.body);
+}
+
+Future<List<int>> getClubLogo(int term, String id) async {
+  final response = await http.get(Uri.parse('https://api.sejm.gov.pl/sejm/term$term/clubs/$id/logo'));
+  return response.bodyBytes;
+}
+
+Future<List<List<Map<String, dynamic>>>> findMinimalCoalitions({
+  int term = 10,
+  int threshold = 231,
+  int? maxCombinations,
+}) async {
+  final clubsResponse = await getClubs(term);
+  List<Map<String, dynamic>> clubs = List<Map<String, dynamic>>.from(clubsResponse['data']);
+
   clubs.sort((a, b) => b['membersCount'].compareTo(a['membersCount']));
 
-  List<List<dynamic>> minimalCoalitions = [];
+  maxCombinations ??= clubs.length;
+  List<List<Map<String, dynamic>>> minimalCoalitions = [];
+  Set<Set<String>> minimalCoalitionNames = {};
 
-  for (int i = 1; i <= clubs.length; i++) {
-    for (var coalition in combinations(clubs, i)) {
+  for (int coalitionSize = 1; coalitionSize <= maxCombinations; coalitionSize++) {
+    for (List<Map<String, dynamic>> coalition in combinations(clubs, coalitionSize)) {
       int totalMPs = coalition.fold(0, (sum, club) => sum + club['membersCount'] as int);
+      Set<String> coalitionNames = coalition.map((club) => club['name'] as String).toSet();
+
+
       if (totalMPs >= threshold) {
-        minimalCoalitions.add(coalition);
-        break;
+        bool isMinimal = true;
+        for (var existingNames in minimalCoalitionNames) {
+          if (existingNames.containsAll(coalitionNames)) {
+            isMinimal = false;
+            break;
+          }
+        }
+
+        if (isMinimal) {
+          for (var club in coalition) {
+            var subsetCoalition = List.from(coalition)..remove(club);
+            int subsetMPs = subsetCoalition.fold(0, (sum, c) => sum + c['membersCount'] as int);
+            if (subsetMPs < threshold) {
+              isMinimal = true;
+              break;
+            }
+            isMinimal = false;
+          }
+        }
+
+        if (isMinimal && !minimalCoalitionNames.contains(coalitionNames)) {
+          minimalCoalitions.add(coalition);
+          minimalCoalitionNames.add(coalitionNames);
+        }
       }
     }
   }
@@ -29,14 +68,35 @@ Future<List<dynamic>> findMinimalCoalitions(int term, {int threshold = 231}) asy
   return minimalCoalitions;
 }
 
-Iterable<List<T>> combinations<T>(List<T> list, int k) sync* {
-  if (k == 0) {
+Iterable<List<T>> combinations<T>(List<T> items, int length) sync* {
+  if (length == 0) {
     yield [];
   } else {
-    for (int i = 0; i <= list.length - k; i++) {
-      for (var tail in combinations(list.sublist(i + 1), k - 1)) {
-        yield [list[i], ...tail];
+    for (int i = 0; i <= items.length - length; i++) {
+      for (var tail in combinations(items.sublist(i + 1), length - 1)) {
+        yield [items[i], ...tail];
       }
     }
+  }
+}
+
+void printCoalitionsTable(List<List<Map<String, dynamic>>> coalitions) {
+  print('Coalition\tClubs\t\tTotal MPs');
+  int i = 1;
+  for (var coalition in coalitions) {
+    String clubs = coalition.map((club) => club['name']).join(', ');
+    int totalMPs = coalition.fold(0, (sum, club) => sum + club['membersCount'] as int);
+    print('$i\t$clubs\t$totalMPs');
+    i++;
+  }
+
+  print('\nDetailed Club Breakdown:');
+  i = 1;
+  for (var coalition in coalitions) {
+    print('\nCoalition $i:');
+    for (var club in coalition) {
+      print('Club: ${club['name']}, MPs: ${club['membersCount']}');
+    }
+    i++;
   }
 }

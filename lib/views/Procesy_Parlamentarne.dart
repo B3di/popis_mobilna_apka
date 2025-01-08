@@ -666,6 +666,7 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
                         hint: const Text('Wybierz komisję'),
                         items: _committees
                             .map((committee) => DropdownMenuItem<String>(
+
                                   value: committee['code'],
                                   child: Text(committee['name']),
                                 ))
@@ -710,7 +711,7 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
             : DataTable(
                 columns: [
                   DataColumn(label: Text('Imię i nazwisko')),
-                  DataColumn(label: Text('Stanowisko')),
+                  DataColumn(label: Text('Partia')),
                 ],
                 rows: _committeePresidium.expand((item) {
                   // Rozbijamy dane `members` i przypisujemy je do odpowiednich klubów
@@ -831,13 +832,13 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
               isExpanded: true,
               value: _selectedProcess,
               hint: Text('Wybierz proces legislacyjny'),
-              items: _legislativeProcesses
-                  .map((process) => DropdownMenuItem<String>(
-                value: process['number'],
-                child: Text(
-                    '${process['number']} - ${process['title']}'),
-              ))
-                  .toList(),
+              items: _legislativeProcesses.map((process) {
+                final processNumber = process['number'];
+                return DropdownMenuItem<String>(
+                  value: processNumber,
+                  child: Text('$processNumber - ${process['title']}'),
+                );
+              }).toList(),
               onChanged: (value) {
                 setState(() {
                   _selectedProcess = value;
@@ -937,14 +938,18 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
                 ? CircularProgressIndicator()
                 : _latestLaws.isEmpty
                 ? Text('Brak dostępnych aktów prawnych.')
-                : ListView(
-              shrinkWrap: true,
-              children: _latestLaws.map((law) {
-                return ListTile(
-                  title: Text(law['title']),
-                  subtitle: Text('Typ: ${law['type']}'),
-                );
-              }).toList(),
+                : SizedBox(
+              height: MediaQuery.of(context).size.height * 0.5, // Ustawienie wysokości na połowę ekranu // Ustalona wysokość dla przewijanej listy
+              child: ListView.builder(
+                itemCount: _latestLaws.length,
+                itemBuilder: (context, index) {
+                  final law = _latestLaws[index];
+                  return ListTile(
+                    title: Text(law['title']),
+                    subtitle: Text('Typ: ${law['type']}'),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -1028,6 +1033,13 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
                         _selectedTerm = int.tryParse(value) ?? 10;
                       });
                     },
+                    onSubmitted: (value) {
+                      setState(() {
+                        _selectedTerm = int.tryParse(value) ?? 10;
+                        _termController.text = _selectedTerm.toString();
+                        _resetVotingData();
+                      });
+                    },
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1035,6 +1047,7 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
                   onTap: () {
                     setState(() {
                       _selectedTerm = _selectedTerm > 1 ? _selectedTerm - 1 : 1;
+                      _termController.text = _selectedTerm.toString();
                       _resetVotingData();
                     });
                   },
@@ -1054,6 +1067,7 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
                   onTap: () {
                     setState(() {
                       _selectedTerm++;
+                      _termController.text = _selectedTerm.toString();
                       _resetVotingData();
                     });
                   },
