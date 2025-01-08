@@ -6,9 +6,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:fl_chart/fl_chart.dart';
 
+// Kontrolery i klasy pomocnicze (Twoje autorskie)
 import '../controllers/seatsCalculator.dart';
 import '../controllers/electionCalc.dart';
-import '../api_wrappers/clubs.dart';
+
+// Tutaj importujemy plik z SejmAPI
+import '../api_wrappers/clubs.dart'; // <-- zmień ścieżkę na właściwą
 
 /// Główny widget ekranu z zakładkami
 class View3 extends StatefulWidget {
@@ -20,14 +23,43 @@ class View3 extends StatefulWidget {
 
 class _View3State extends State<View3> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  int termNumber = 10;
-  List<dynamic> coalitions = [];
 
+  int termNumber = 10;
+
+  // Poprawiamy typ na List<List<Map<String, dynamic>>>
+  List<List<Map<String, dynamic>>> coalitions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+
+    // Ładujemy koalicje na start
+    _loadCoalitions();
+  }
+
+  void _loadCoalitions() async {
+    // Wywołujemy SejmAPI().findMinimalCoalitions(...)
+    final fetchedCoalitions =
+        await SejmAPI().findMinimalCoalitions(term: termNumber);
+    setState(() {
+      coalitions = fetchedCoalitions;
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  /// Zakładka "Potencjalne Koalicje"
   Widget _buildPotentialCoalitionTab() {
-    return FutureBuilder(
-      future: findMinimalCoalitions(10), // Możesz tu podać np. termNumber
-      builder:
-          (context, AsyncSnapshot<List<List<Map<String, dynamic>>>> snapshot) {
+    // Zamiast FutureBuilder możemy też skorzystać z data, które już mamy w polu `coalitions`.
+    // Jeśli jednak zależy nam na dynamicznym odświeżeniu, można zostawić FutureBuilder:
+    return FutureBuilder<List<List<Map<String, dynamic>>>>(
+      future: SejmAPI().findMinimalCoalitions(term: termNumber),
+      builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         } else if (snapshot.hasError) {
@@ -36,33 +68,35 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
           return const Center(child: Text('Brak danych'));
         }
 
-        // Tu używamy innej nazwy niż "coalitions", aby nie kolidowało z polem klasy:
-        final fetchedCoalitions = snapshot.data!;
+        // Dane poprawnie pobrane
+        final fetchedCoalitions = snapshot.data ?? [];
 
-        // Mamy listę: List<List<Map<String, dynamic>>>. Każdy element to pojedyncza koalicja
-        // (czyli lista klubów). Mapujemy ją na nasz obiekt do tabeli:
-        List<Map<String, dynamic>> coalitionData =
-            fetchedCoalitions.map((coalition) {
-          final total = coalition
+        // Mapowanie danych do wyświetlenia w tabeli
+        final coalitionData = fetchedCoalitions.map((coalition) {
+          final totalMembers = coalition
               .map((club) => club['membersCount'] as int)
               .reduce((a, b) => a + b);
-          print(total);
-          final largest = coalition
+
+          final largestMembers = coalition
               .map((club) => club['membersCount'] as int)
               .reduce(math.max);
 
-          final ratio = total > 0 ? (largest / total) * 100.0 : 0.0;
+          final ratio =
+              totalMembers > 0 ? (largestMembers / totalMembers) * 100.0 : 0.0;
 
+          // Uwaga: jeśli chcesz pokazywać nazwy klubów, a nie "id",
+          // to zmień klucz na 'name' (lub odwrotnie – zależnie od API).
           return {
             'ProcentNajwiekszyKlub': ratio.toStringAsFixed(2),
-            'Kluby': coalition.map((club) => club['id'] as String).join(', '),
-            'LacznaIloscPoslow': total,
+            'Kluby': coalition.map((club) => club['name'] as String).join(', '),
+            'LacznaIloscPoslow': totalMembers,
             'IloscKlubow': coalition.length,
           };
         }).toList();
+
         return Column(
           children: [
-            // TABELA
+            // Tabela
             Expanded(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -73,7 +107,7 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
             ),
             // Metryki
             _buildMetrics(coalitionData),
-            // Selektor koalicji
+            // Selektor koalicji (np. do BottomSheet)
             _buildCoalitionSelector(context, fetchedCoalitions),
           ],
         );
@@ -83,89 +117,90 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
 
   /// TABELA
   Widget _buildDataTable(List<Map<String, dynamic>> coalitionData) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columnSpacing: 16.0, // Dodanie odstępów między kolumnami
-        columns: const [
-          DataColumn(
-            label: Expanded(
-              child: Text(
-                'Procent Największy Klub',
-                softWrap: true,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+    return DataTable(
+      columnSpacing: 16.0,
+      columns: const [
+        DataColumn(
+          label: Expanded(
+            child: Text(
+              'Procent Największy Klub',
+              softWrap: true,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-          DataColumn(
-            label: Expanded(
-              child: Text(
-                'Kluby',
-                softWrap: true,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+        ),
+        DataColumn(
+          label: Expanded(
+            child: Text(
+              'Kluby',
+              softWrap: true,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-          DataColumn(
-            label: Expanded(
-              child: Text(
-                'Łączna Ilość Posłów',
-                softWrap: true,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+        ),
+        DataColumn(
+          label: Expanded(
+            child: Text(
+              'Łączna Ilość Posłów',
+              softWrap: true,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-          DataColumn(
-            label: Expanded(
-              child: Text(
-                'Ilość Klubów',
-                softWrap: true,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+        ),
+        DataColumn(
+          label: Expanded(
+            child: Text(
+              'Ilość Klubów',
+              softWrap: true,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-        ],
-        rows: coalitionData.map((data) {
-          return DataRow(cells: [
-            DataCell(Center(
-              child: Text(
-                data['ProcentNajwiekszyKlub'],
-                textAlign: TextAlign.center,
-              ),
-            )),
-            DataCell(SizedBox(
-              width: 200.0, // Ustawienie maksymalnej szerokości dla kolumny
-              child: Text(
-                data['Kluby'],
-                softWrap: true,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-            )),
-            DataCell(Center(
-              child: Text(
-                data['LacznaIloscPoslow'].toString(),
-                textAlign: TextAlign.center,
-              ),
-            )),
-            DataCell(Center(
-              child: Text(
-                data['IloscKlubow'].toString(),
-                textAlign: TextAlign.center,
-              ),
-            )),
-          ]);
-        }).toList(),
-      ),
+        ),
+      ],
+      rows: coalitionData.map((data) {
+        return DataRow(cells: [
+          DataCell(Center(
+            child: Text(
+              data['ProcentNajwiekszyKlub'],
+              textAlign: TextAlign.center,
+            ),
+          )),
+          DataCell(SizedBox(
+            width: 200.0,
+            child: Text(
+              data['Kluby'],
+              softWrap: true,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+          )),
+          DataCell(Center(
+            child: Text(
+              data['LacznaIloscPoslow'].toString(),
+              textAlign: TextAlign.center,
+            ),
+          )),
+          DataCell(Center(
+            child: Text(
+              data['IloscKlubow'].toString(),
+              textAlign: TextAlign.center,
+            ),
+          )),
+        ]);
+      }).toList(),
     );
   }
 
   /// Metryki: liczba koalicji, min i max posłów
   Widget _buildMetrics(List<Map<String, dynamic>> coalitionData) {
+    if (coalitionData.isEmpty) {
+      return const SizedBox();
+    }
+
     int totalCoalitions = coalitionData.length;
     int minPoslow = coalitionData
         .map((data) => data['LacznaIloscPoslow'] as int)
@@ -177,17 +212,25 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal, // Dodajemy przewijanie
+        scrollDirection: Axis.horizontal,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildMetricTile(
-                ' Ilość potencjalnych koalicji  ', totalCoalitions.toString(),
-                fontSize: 4.0),
-            _buildMetricTile('Minimalna ilość posłów  ', minPoslow.toString(),
-                fontSize: 4.0),
-            _buildMetricTile('Maksymalna ilość posłów', maxPoslow.toString(),
-                fontSize: 4.0),
+              'Ilość potencjalnych koalicji',
+              totalCoalitions.toString(),
+              fontSize: 4.0,
+            ),
+            _buildMetricTile(
+              'Minimalna ilość posłów',
+              minPoslow.toString(),
+              fontSize: 4.0,
+            ),
+            _buildMetricTile(
+              'Maksymalna ilość posłów',
+              maxPoslow.toString(),
+              fontSize: 4.0,
+            ),
           ],
         ),
       ),
@@ -196,16 +239,19 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
 
   Widget _buildMetricTile(String title, String value,
       {required double fontSize}) {
-    return Column(
-      children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontSize: 20)),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text(value, style: const TextStyle(fontSize: 20)),
+        ],
+      ),
     );
   }
 
-  /// Dropdown do wyboru koalicji
+  /// Dropdown do wyboru koalicji i pokazania szczegółów (BottomSheet)
   Widget _buildCoalitionSelector(
     BuildContext context,
     List<List<Map<String, dynamic>>> potentialCoalitions,
@@ -249,7 +295,7 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Można wstawić wykres słupkowy, jeśli potrzebny:
+            // Można wstawić wykres słupkowy, jeśli potrzebny
             // Expanded(child: _buildBarChart(coalition)),
 
             const SizedBox(height: 16),
@@ -262,39 +308,139 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
 
   /// Wykres kołowy
   Widget _buildPieChart(List<Map<String, dynamic>> coalition) {
-    // Oblicz sumę członków dla procentów
     final totalMembers = coalition.fold<int>(
       0,
-      (sum, club) => sum + club['membersCount'] as int,
+      (sum, club) => sum + (club['membersCount'] as int),
     );
 
+    // Uwaga: jeśli w oryginalnym API klucz to "id", wówczas
+    //   final double percentage = ...club['membersCount'] / ...
+    //   color: Colors.primaries[club['id'].hashCode % Colors.primaries.length],
+    //
+    // a jeśli klucz to "name", to generuj np.:
+    //   color: Colors.primaries[club['name'].hashCode % Colors.primaries.length]
+    //
+    // Poniżej przykład z 'name':
     List<PieChartSectionData> pieData = coalition.map((club) {
       final double percentage = (club['membersCount'] / totalMembers) * 100;
-
       return PieChartSectionData(
         value: club['membersCount'].toDouble(),
-        title: "${percentage.toStringAsFixed(1)}%", // Procent w tytule
-        color: Colors.primaries[club['id'].hashCode % Colors.primaries.length],
+        title: "${percentage.toStringAsFixed(1)}%",
+        color:
+            Colors.primaries[club['name'].hashCode % Colors.primaries.length],
         radius: 50,
         titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         badgeWidget: Text(
-          club['id'],
+          club['name'],
           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         ),
-        badgePositionPercentageOffset: 1.5, // Etykieta poza segmentem
+        badgePositionPercentageOffset: 1.5,
       );
     }).toList();
 
     return Padding(
-      padding: const EdgeInsets.all(16.0), // Odstęp dla lepszego wyglądu
+      padding: const EdgeInsets.all(16.0),
       child: PieChart(
         PieChartData(
           sections: pieData,
-          centerSpaceRadius: 40, // Większa przestrzeń w środku
-          sectionsSpace: 3, // Drobne odstępy między segmentami
-          borderData: FlBorderData(show: false), // Wyłączenie obramowania
-          startDegreeOffset: 270, // Start od góry koła
+          centerSpaceRadius: 40,
+          sectionsSpace: 3,
+          borderData: FlBorderData(show: false),
+          startDegreeOffset: 270,
         ),
+      ),
+    );
+  }
+
+  /// -------------------------------------------------------
+  /// Pozostałe zakładki: "Kalkulator Wyborczy"
+  /// -------------------------------------------------------
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        title: Padding(
+          padding: const EdgeInsets.only(top: 18.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.bar_chart, size: 32),
+              SizedBox(width: 8),
+              Text(
+                'Analiza Polityczna',
+                style: TextStyle(fontSize: 24),
+              ),
+            ],
+          ),
+        ),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.red,
+          tabs: const [
+            Tab(
+              child: Text(
+                'Potencjalne Koalicje',
+                style: TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ),
+            Tab(
+              child: Text(
+                'Kalkulator Wyborczy',
+                style: TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildPotentialCoalitionTab(),
+          _buildElectionCalculatorTab(),
+        ],
+      ),
+    );
+  }
+
+  /// Zakładka "Kalkulator Wyborczy" z dwoma podzakładkami: "Własne" i "Rzeczywiste"
+  Widget _buildElectionCalculatorTab() {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          const TabBar(
+            labelColor: Colors.red,
+            tabs: [
+              Tab(text: "Własne"),
+              Tab(text: "Rzeczywiste"),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                // 1) WŁASNE
+                ElectionCalculatorTab(
+                  dataJson: dataJson,
+                  votesJson: votesJson,
+                  onDataJsonChanged: (updated) {
+                    setState(() {
+                      dataJson = updated;
+                    });
+                  },
+                  onVotesJsonChanged: (updated) {
+                    setState(() {
+                      votesJson = updated;
+                    });
+                  },
+                ),
+                // 2) RZECZYWISTE
+                const RealElectionCalculatorTab(),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -715,7 +861,7 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
     },
   };
 
-  // votesJson
+// votesJson
   Map<String, dynamic> votesJson = {
     "Legnica": {
       "PiS": 0.0,
@@ -1005,124 +1151,6 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
       "Konfederacja": 0.0,
     },
   };
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-    _loadCoalitions();
-  }
-
-  void _loadCoalitions() async {
-    List<dynamic> fetchedCoalitions = await findMinimalCoalitions();
-    setState(() {
-      coalitions = fetchedCoalitions;
-    });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  /// Przykładowa funkcja budująca zawartość nieużywanych jeszcze zakładek
-  Widget _buildTabContent(String title) {
-    return Center(
-      child: Text('$title content here', style: const TextStyle(fontSize: 14)),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: Padding(
-          padding: const EdgeInsets.only(top: 18.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.bar_chart, size: 32),
-              SizedBox(width: 8),
-              Text(
-                'Analiza Polityczna',
-                style: TextStyle(fontSize: 24),
-              ),
-            ],
-          ),
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.red,
-          tabs: const [
-            Tab(
-              child: Text(
-                'Potencjalne Koalicje',
-                style: TextStyle(color: Colors.red, fontSize: 12),
-              ),
-            ),
-            Tab(
-              child: Text(
-                'Kalkulator Wyborczy',
-                style: TextStyle(color: Colors.red, fontSize: 12),
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildPotentialCoalitionTab(),
-          _buildElectionCalculatorTab(),
-        ],
-      ),
-    );
-  }
-
-  /// Zakładka "Kalkulator Wyborczy" z dwoma podzakładkami: "Własne" i "Rzeczywiste"
-  Widget _buildElectionCalculatorTab() {
-    return DefaultTabController(
-      length: 2, // Dwie podzakładki
-      child: Column(
-        children: [
-          const TabBar(
-            labelColor: Colors.red,
-            tabs: [
-              Tab(text: "Własne"),
-              Tab(text: "Rzeczywiste"),
-            ],
-          ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                // 1) WŁASNE – nasz dotychczasowy widget
-                ElectionCalculatorTab(
-                  dataJson: dataJson,
-                  votesJson: votesJson,
-                  onDataJsonChanged: (updated) {
-                    setState(() {
-                      dataJson = updated;
-                    });
-                  },
-                  onVotesJsonChanged: (updated) {
-                    setState(() {
-                      votesJson = updated;
-                    });
-                  },
-                ),
-
-                // 2) RZECZYWISTE – wczytuje dane z CSV i wyświetla
-                const RealElectionCalculatorTab(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// ----------------------------------------------------------
@@ -1326,10 +1354,7 @@ class _ElectionCalculatorTabState extends State<ElectionCalculatorTab> {
 
   Widget _buildResultsTable() {
     if (_resultSeats.isEmpty) {
-      return const Text(
-        "",
-        style: TextStyle(color: Colors.grey),
-      );
+      return const Text("", style: TextStyle(color: Colors.grey));
     }
 
     return DataTable(
@@ -1445,7 +1470,7 @@ class _ElectionCalculatorTabState extends State<ElectionCalculatorTab> {
 }
 
 /// ----------------------------------------------------------
-/// Widget "Rzeczywiste" – wczytuje dane z CSV
+/// Widget "Rzeczywiste" – wczytuje dane z CSV (przykład)
 /// ----------------------------------------------------------
 class RealElectionCalculatorTab extends StatefulWidget {
   const RealElectionCalculatorTab({Key? key}) : super(key: key);
@@ -1626,7 +1651,6 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
   void _calculateResults() {
     if (_csvRaw.isEmpty || _selectedYear == null) return;
 
-    // Skopiuj mapę `seatsPerDistrict`, aby wprowadzać zmiany w lokalnym kontekście
     final modifiedSeatsPerDistrict = Map<String, int>.from(seatsPerDistrict);
 
     // Korekty historyczne liczby mandatów (2001–2007)
@@ -1643,7 +1667,6 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
       return;
     }
 
-    // Mapa: "1" -> { "partiaX": 123, "partiaY": 456 }
     final Map<String, Map<String, double>> votesPerDistrict = {};
 
     for (var row in _csvRaw.skip(1)) {
@@ -1741,13 +1764,9 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
   /// Render tabeli z wynikami — zagregowanymi (suma z wszystkich okręgów).
   Widget _buildResultsTable() {
     if (_results.isEmpty) {
-      return const Text(
-        "",
-        style: TextStyle(color: Colors.grey),
-      );
+      return const Text("", style: TextStyle(color: Colors.grey));
     }
 
-    // 1) Zbierz wszystkie nazwy partii (dla kolumn)
     final allParties = <String>{};
     _results.values.forEach((methodsMap) {
       methodsMap.values.forEach((mapParties) {
@@ -1756,10 +1775,8 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
     });
     final allPartiesList = allParties.toList()..sort();
 
-    // 2) Przygotuj mapę do zagregowania: Map<metoda, Map<partia, suma mandatów>>
     final Map<String, Map<String, int>> aggregated = {};
 
-    // 3) Sumujemy z wszystkich okręgów
     _results.forEach((district, methodsMap) {
       methodsMap.forEach((methodName, seatsMap) {
         aggregated.putIfAbsent(methodName, () => {});
@@ -1773,7 +1790,6 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
       });
     });
 
-    // 4) Budujemy wiersze tabeli (wiersz = metoda)
     final rows = <DataRow>[];
     final methodsSorted = aggregated.keys.toList()..sort();
 
@@ -1792,7 +1808,6 @@ class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
       rows.add(DataRow(cells: cells));
     }
 
-    // 5) Nagłówki kolumn
     final columns = [
       const DataColumn(label: Text("Metoda")),
       ...allPartiesList.map((p) => DataColumn(label: Text(p))),
