@@ -25,8 +25,8 @@ class InterpelationDetails {
       receiptDate: json['receiptDate'] as String,
       from: List<String>.from(json['from'] ?? []), // Konwersja na List<String>
       replies: (json['replies'] as List<dynamic>?)
-          ?.map((e) => Reply.fromJson(e))
-          .toList() ??
+              ?.map((e) => Reply.fromJson(e))
+              .toList() ??
           [], // Konwersja na List<Reply>
     );
   }
@@ -48,8 +48,8 @@ class Reply {
       from: json['from'] as String,
       receiptDate: json['receiptDate'] as String,
       attachments: (json['attachments'] as List<dynamic>?)
-          ?.map((e) => Attachment.fromJson(e))
-          .toList() ??
+              ?.map((e) => Attachment.fromJson(e))
+              .toList() ??
           [],
     );
   }
@@ -72,19 +72,19 @@ class Attachment {
   }
 }
 
-
-
 class InterpelationController {
   final String baseUrl = 'https://api.sejm.gov.pl/sejm';
 
-  Future<Map<String, dynamic>> getInterpelationDetails(int term, int num) async {
+  Future<Map<String, dynamic>> getInterpelationDetails(
+      int term, int num) async {
     final url = Uri.parse('$baseUrl/term$term/interpellations/$num');
     final response = await http.get(url);
 
     print('Response status: ${response.statusCode}');
     print('Response body: ${response.body}');
     if (response.statusCode == 200) {
-      final json = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final json =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       print(json);
 
       List<String?> fileUrls = [];
@@ -108,7 +108,7 @@ class InterpelationController {
         }
       }
       var textContent = '';
-      try{
+      try {
         final response = await http.get(Uri.parse(htmls[0]!));
         final document = parse(response.body);
         textContent = document.body!.text;
@@ -123,7 +123,7 @@ class InterpelationController {
         'sentDate': json['sentDate'],
         //authors': json['from'].map<String>((author) => author['name']).toList(),
         'response': json['replies'].isNotEmpty
-            ? '${textContent}'//\nOdpowiedź w załączniku:\n${fileUrls.where((url) => url != null).join(', ')}'
+            ? '${textContent}' //\nOdpowiedź w załączniku:\n${fileUrls.where((url) => url != null).join(', ')}'
             : 'Brak odpowiedzi',
         'attachments': fileUrls.where((url) => url != null),
       };
