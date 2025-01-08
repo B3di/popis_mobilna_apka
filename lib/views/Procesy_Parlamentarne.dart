@@ -3,6 +3,7 @@ import '../controllers/interpelation_controller.dart';
 import '../controllers/committee_controller.dart';
 import '../controllers/voting_controller.dart';
 import '../controllers/acts_controller.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class View2 extends StatefulWidget {
   @override
@@ -558,7 +559,35 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         Text(_interpelationDetails!['response'] ?? 'Brak odpowiedzi'),
-        Text('Załączniki:${_interpelationDetails!['attachments']}' ?? 'Brak załączników'),
+        if (_interpelationDetails!['attachments'] != null && _interpelationDetails!['attachments'].isNotEmpty)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: 8),
+              Text(
+                'Załączniki:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              // Filter out null values and convert to List<String>
+              ...(_interpelationDetails!['attachments'].where((attachment) => attachment != null).cast<String>().toList()).map((attachment) {
+                return GestureDetector(
+                  onTap: () async {
+                    if (await canLaunchUrl(Uri.parse(attachment))) {
+                      await launchUrl(Uri.parse(attachment));
+                    } else {
+                      throw 'Could not launch $attachment';
+                    }
+                  },
+                  child: Text(
+                    attachment,
+                    style: TextStyle(color: Colors.blue),
+                  ),
+                );
+              }).toList(),
+            ],
+          )
+        else
+          Text('Brak załączników'),
       ],
     );
   }
