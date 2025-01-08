@@ -22,7 +22,7 @@ Future<List<List<Map<String, dynamic>>>> findMinimalCoalitions([int term = 10,in
   List<Map<String, dynamic>> clubs = List<Map<String, dynamic>>.from(clubsResponse['data']);
 
   clubs.sort((a, b) => b['membersCount'].compareTo(a['membersCount']));
-
+  print(clubs.length);
   maxCombinations ??= clubs.length;
   List<List<Map<String, dynamic>>> minimalCoalitions = [];
   Set<Set<String>> minimalCoalitionNames = {};

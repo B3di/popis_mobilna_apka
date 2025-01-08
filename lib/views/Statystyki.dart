@@ -425,11 +425,8 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
                 child: ElevatedButton(
                   onPressed: () {
                     setState(() {
-                      if (_value > 1) {
-                        _value--;
-                        _termController.text = _value.toString();
-                        _loadCommittees();
-                      }
+                      if (_poslowieTermNumber > 1) _poslowieTermNumber--;
+                      _loadMpsData(_poslowieTermNumber);
                     });
                   },
                   style: ElevatedButton.styleFrom(
@@ -446,9 +443,8 @@ class _View1State extends State<View1> with TickerProviderStateMixin {
                 child: ElevatedButton(
                   onPressed: () {
                     setState(() {
-                      _value++;
-                      _termController.text = _value.toString();
-                      _loadCommittees();
+                      _poslowieTermNumber++;
+                      _loadMpsData(_poslowieTermNumber);
                     });
                   },
                   style: ElevatedButton.styleFrom(
