@@ -743,35 +743,41 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         _committeePresidium.isEmpty
             ? Text('Brak danych o prezydium.')
-            : DataTable(
-                columns: [
-                  DataColumn(label: Text('Imię i nazwisko')),
-                  DataColumn(label: Text('Partia')),
-                ],
-                rows: _committeePresidium.expand((item) {
-                  // Rozbijamy dane `members` i przypisujemy je do odpowiednich klubów
-                  final members = item['members'] as Map<String, int>;
-                  final clubs = item['clubs'] as Map<String, List<String>>;
+            : SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            columns: [
+              DataColumn(label: Text('Imię i nazwisko')),
+              DataColumn(label: Text('Partia')),
+              DataColumn(label: Text('Funkcja')),
+            ],
+            rows: _committeePresidium.expand((item) {
+              final members = item['members'] as Map<String, int>;
+              final clubs = item['clubs'] as Map<String, List<String>>;
+              final functions = item['functions'] as Map<String, Map<String, String>>;
 
-                  return members.entries.map((member) {
-                    // Znajdujemy klub, do którego należy członek
-                    final club = clubs.entries
-                        .firstWhere(
-                          (clubEntry) => clubEntry.value.contains(member.key),
-                          orElse: () => MapEntry('Nieznany klub', []),
-                        )
-                        .key;
+              return members.keys.map((memberName) {
+                final clubEntry = clubs.entries.firstWhere(
+                      (clubEntry) => clubEntry.value.contains(memberName),
+                  orElse: () => MapEntry('Nieznany klub', []),
+                );
+                final clubName = clubEntry.key;
+                final memberFunction = functions[memberName]?['function'] ?? 'Brak funkcji';
 
-                    return DataRow(cells: [
-                      DataCell(Text(member.key)), // Imię i nazwisko
-                      DataCell(Text(club)), // Klub
-                    ]);
-                  });
-                }).toList(),
-              ),
+                return DataRow(cells: [
+                  DataCell(Text(memberName)), // Imię i nazwisko
+                  DataCell(Text(clubName)),   // Klub
+                  DataCell(Text(memberFunction)), // Funkcja
+                ]);
+              }).toList();
+            }).toList(),
+          ),
+        ),
       ],
     );
   }
+
+
 
   Widget _buildLawsTab() {
     return Padding(
