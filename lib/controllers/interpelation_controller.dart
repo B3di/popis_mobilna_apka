@@ -80,12 +80,10 @@ class InterpelationController {
     final url = Uri.parse('$baseUrl/term$term/interpellations/$num');
     final response = await http.get(url);
 
-    print('Response status: ${response.statusCode}');
-    print('Response body: ${response.body}');
+
     if (response.statusCode == 200) {
       final json =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      print(json);
 
       List<String?> fileUrls = [];
       List<String?> htmls = [];
