@@ -13,7 +13,10 @@ class SejmAPI {
   Future<Map<String, dynamic>> getClub(int term, String id) async {
     final url = Uri.parse('$baseUrl/term$term/clubs/$id');
     final response = await http.get(url);
-    return jsonDecode(utf8.decode(response.bodyBytes));
+
+    // Tu może się zdarzyć, że `response.bodyBytes` jest pusty
+    // albo `jsonDecode(...)` zwróci null
+    return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
   }
 
   Future<Uint8List> getClubLogo(int term, String id) async {
