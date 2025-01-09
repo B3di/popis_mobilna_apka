@@ -20,33 +20,33 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
   final TextEditingController _yearController =
       TextEditingController(text: DateTime.now().year.toString());
 
-  final CommitteeController _committeeController =
-      CommitteeController(); // Tworzymy instancję dla kontrolera komisji
-  final VotingController _votingController =
-      VotingController(); // Kontroler do obsługi głosowań
+  final CommitteeController _committeeController = CommitteeController();
+  final VotingController _votingController = VotingController();
   final LegislativeController _legislativeController = LegislativeController();
 
   late TabController _tabController;
 
-  int _selectedTerm = 10; // Domyślna kadencja
-  int _selectedInterpelation = 1; // Domyślny numer interpelacji
-  Map<String, dynamic>?
-      _interpelationDetails; // Szczegóły wybranej interpelacji
-  bool _isLoading = false; // Status ładowania danych
+  int _selectedTerm = 10;
+  int _selectedInterpelation = 1;
+  Map<String, dynamic>? _interpelationDetails;
+  bool _isLoading = false;
 
-  String? _selectedCommittee; // Wybrana komisja
-  List<Map<String, dynamic>> _committees = []; // Lista komisji
-  Map<String, dynamic>? _committeeDetails; // Szczegóły wybranej komisji
-  List<String> _recentMeetings = []; // Ostatnie posiedzenia
-  List<Map<String, dynamic>> _committeePresidium = []; // Prezydium komisji
+  // <<< LISTA NA DETALE POSELSKIE >>>
+  List<dynamic> _mpDetailsList = [];
 
-  List<Map<String, dynamic>> _mps = []; // Lista posłów
-  Map<String, dynamic>? _selectedMp; // Wybrany poseł
-  List<int> _proceedingNumbers = []; // Lista numerów posiedzeń
-  int? _selectedProceedingNumber; // Wybrany numer posiedzenia
-  List<String> _votingDates = []; // Lista dat głosowań
-  String? _selectedVotingDate; // Wybrana data głosowania
-  List<Map<String, dynamic>> _votingDetails = []; // Szczegóły głosowań
+  String? _selectedCommittee;
+  List<Map<String, dynamic>> _committees = [];
+  Map<String, dynamic>? _committeeDetails;
+  List<String> _recentMeetings = [];
+  List<Map<String, dynamic>> _committeePresidium = [];
+
+  List<Map<String, dynamic>> _mps = [];
+  Map<String, dynamic>? _selectedMp;
+  List<int> _proceedingNumbers = [];
+  int? _selectedProceedingNumber;
+  List<String> _votingDates = [];
+  String? _selectedVotingDate;
+  List<Map<String, dynamic>> _votingDetails = [];
 
   List<Map<String, dynamic>> _legislativeProcesses = [];
   Map<String, dynamic>? _processDetails;
@@ -60,8 +60,8 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
     _tabController = TabController(length: 4, vsync: this);
     _termController.text = '10';
     _yearController.text = DateTime.now().year.toString();
-    // Po uruchomieniu aplikacji możesz też od razu pobrać komisje:
-    fetchCommittees();
+    // Jeśli potrzebujemy od razu pobrać listę komisji (lub cokolwiek innego)
+    // fetchCommittees(); // Upewnij się, że metoda fetchCommittees istnieje!
   }
 
   @override
@@ -75,8 +75,8 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
   Future<void> fetchInterpelationDetails() async {
     setState(() {
       _isLoading = true;
-      _interpelationDetails =
-          null; // Resetowanie szczegółów przed nowym pobraniem
+      _interpelationDetails = null;
+      _mpDetailsList = []; // resetujemy listę posłów
     });
 
     try {
@@ -86,9 +86,375 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
       );
       setState(() {
         _interpelationDetails = details;
+        // Odczytujemy listę posłów z klucza "mpDetails"
+        _mpDetailsList = details['mpDetails'] ?? [];
       });
     } catch (e) {
       print('Błąd podczas ładowania szczegółów interpelacji: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // --- Poniżej inne metody, np. fetchCommittees, fetchVotingDetails, etc. ---
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        title: Padding(
+          padding: const EdgeInsets.only(top: 18.0),
+          child: Row(
+            children: [
+              Icon(Icons.bar_chart, size: 32),
+              SizedBox(width: 8),
+              Text('Procesy Parlamentarne', style: TextStyle(fontSize: 24)),
+            ],
+          ),
+        ),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.red,
+          tabs: [
+            Tab(
+              child: Text(
+                'Interpelacje',
+                style: TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ),
+            Tab(
+              child: Text(
+                'Ustawy',
+                style: TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ),
+            Tab(
+              child: Text(
+                'Komisje',
+                style: TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ),
+            Tab(
+              child: Text(
+                'Głosowania Posłów',
+                style: TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildInterpelationTab(),
+          _buildLawsTab(),
+          _buildCommitteesTab(),
+          _buildVotingTab(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInterpelationTab() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Kadencja sejmu', style: TextStyle(fontSize: 18)),
+            SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Container(
+                  width: 220,
+                  height: 50,
+                  child: TextField(
+                    controller: _termController,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[800],
+                    ),
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedTerm = int.tryParse(value) ?? 10;
+                      });
+                    },
+                  ),
+                ),
+                SizedBox(width: 8),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selectedTerm = _selectedTerm > 1 ? _selectedTerm - 1 : 1;
+                      _termController.text = _selectedTerm.toString();
+                    });
+                  },
+                  child: Container(
+                    width: 70,
+                    height: 50,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.remove, color: Colors.white),
+                  ),
+                ),
+                SizedBox(width: 8),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selectedTerm++;
+                      _termController.text = _selectedTerm.toString();
+                    });
+                  },
+                  child: Container(
+                    width: 70,
+                    height: 50,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[800],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.add, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            Text('Numer interpelacji', style: TextStyle(fontSize: 18)),
+            SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Container(
+                  width: 220,
+                  height: 50,
+                  child: TextField(
+                    controller: _interpelationController2,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[600],
+                    ),
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedInterpelation = int.tryParse(value) ?? 1;
+                      });
+                    },
+                  ),
+                ),
+                SizedBox(width: 8),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selectedInterpelation = _selectedInterpelation > 1
+                          ? _selectedInterpelation - 1
+                          : 1;
+                      _interpelationController2.text =
+                          _selectedInterpelation.toString();
+                    });
+                  },
+                  child: Container(
+                    width: 70,
+                    height: 50,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.red[400],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.remove, color: Colors.white),
+                  ),
+                ),
+                SizedBox(width: 8),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selectedInterpelation++;
+                      _interpelationController2.text =
+                          _selectedInterpelation.toString();
+                    });
+                  },
+                  child: Container(
+                    width: 70,
+                    height: 50,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[600],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.add, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: fetchInterpelationDetails,
+              child: Text('Pokaż szczegóły'),
+            ),
+            SizedBox(height: 16),
+            _isLoading
+                ? CircularProgressIndicator()
+                : _interpelationDetails == null
+                    ? Text('Wprowadź dane i kliknij "Pokaż szczegóły".')
+                    : _buildInterpelationDetails(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInterpelationDetails() {
+    if (_interpelationDetails == null) {
+      return Text('Brak szczegółów do wyświetlenia.');
+    }
+
+    final title = _interpelationDetails!['title'] ?? 'Brak tytułu';
+    final sentDate = _interpelationDetails!['sentDate'] ?? 'Brak daty wysłania';
+    final response = _interpelationDetails!['response'] ?? 'Brak odpowiedzi';
+    final attachments =
+        _interpelationDetails!['attachments'] as Iterable? ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tytuł: $title',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 8),
+        Text('Data wysłania: $sentDate'),
+        SizedBox(height: 8),
+        Text(
+          'Odpowiedź:',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        Text(response),
+        SizedBox(height: 8),
+        Text(
+          'Załączniki:',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        ...attachments.map((url) {
+          if (url != null) {
+            return InkWell(
+              onTap: () => _launchUrl(url),
+              child: Text(
+                url,
+                style: TextStyle(
+                    color: Colors.blue, decoration: TextDecoration.underline),
+              ),
+            );
+          } else {
+            return Text('Brak załączników');
+          }
+        }),
+
+        SizedBox(height: 16),
+        Divider(),
+
+        // >>> TUTAJ WYŚWIETLAMY DANE O POSŁACH ORAZ ICH ZDJĘCIA <<<
+        Text(
+          'Autorzy interpelacji:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        if (_mpDetailsList.isEmpty)
+          Text('Brak danych o posłach.')
+        else
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: _mpDetailsList.map((mp) {
+              // mp jest obiektem MPDetails
+              final id = mp.id;
+              final name = mp.accusativeName;
+              final profession = mp.profession;
+              final photoUrl = mp.photoUrl;
+              final club = mp.club;
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Zdjęcie
+                    SizedBox(
+                      width: 60,
+                      height: 60,
+                      child: Image.network(
+                        photoUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          // Jeśli zdjęcie się nie wczyta, wyświetli placeholder
+                          return Container(
+                            color: Colors.grey,
+                            child: Icon(Icons.person, color: Colors.white),
+                          );
+                        },
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    // Dane posła
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('$name',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text('Zawód: $profession'),
+                          Text('Partia: $club'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+      ],
+    );
+  }
+
+  // Funkcja pomocnicza do otwierania URL
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      throw Exception('Nie udało się otworzyć linku: $url');
+    }
+  }
+
+  Future<void> fetchCommittees() async {
+    setState(() {
+      _isLoading = true;
+      _committees = [];
+    });
+
+    try {
+      final committees =
+          await _committeeController.getCommittees(_selectedTerm);
+      setState(() {
+        _committees = committees;
+      });
+    } catch (e) {
+      print('Błąd podczas ładowania komisji: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -139,27 +505,6 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
       });
     } catch (e) {
       print('Błąd podczas ładowania ostatnich aktów prawnych: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> fetchCommittees() async {
-    setState(() {
-      _isLoading = true;
-      _committees = [];
-    });
-
-    try {
-      final committees =
-          await _committeeController.getCommittees(_selectedTerm);
-      setState(() {
-        _committees = committees;
-      });
-    } catch (e) {
-      print('Błąd podczas ładowania komisji: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -313,291 +658,6 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: Padding(
-          padding: const EdgeInsets.only(top: 18.0),
-          child: Row(
-            children: [
-              Icon(Icons.bar_chart, size: 32),
-              SizedBox(width: 8),
-              Text('Procesy Parlamentarne', style: TextStyle(fontSize: 24)),
-            ],
-          ),
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.red,
-          tabs: [
-            Tab(
-              child: Text(
-                'Interpelacje',
-                style: TextStyle(color: Colors.red, fontSize: 12),
-              ),
-            ),
-            Tab(
-              child: Text(
-                'Ustawy',
-                style: TextStyle(color: Colors.red, fontSize: 12),
-              ),
-            ),
-            Tab(
-              child: Text(
-                'Komisje',
-                style: TextStyle(color: Colors.red, fontSize: 12),
-              ),
-            ),
-            Tab(
-              child: Text(
-                'Głosowania Posłów',
-                style: TextStyle(color: Colors.red, fontSize: 12),
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildInterpelationTab(),
-          _buildLawsTab(),
-          _buildCommitteesTab(),
-          _buildVotingTab(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInterpelationTab() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Kadencja sejmu',
-                style: TextStyle(fontSize: 18, color: Colors.black)),
-            SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Container(
-                  width: 220,
-                  height: 50,
-                  child: TextField(
-                    controller: _termController,
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey[800],
-                    ),
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedTerm = int.tryParse(value) ?? 10;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _selectedTerm = _selectedTerm > 1 ? _selectedTerm - 1 : 1;
-                      _termController.text = _selectedTerm.toString();
-                    });
-                  },
-                  child: Container(
-                    width: 70,
-                    height: 50,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(Icons.remove, color: Colors.white),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _selectedTerm++;
-                      _termController.text = _selectedTerm.toString();
-                    });
-                  },
-                  child: Container(
-                    width: 70,
-                    height: 50,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[800],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(Icons.add, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-            Text('Numer interpelacji',
-                style: TextStyle(fontSize: 18, color: Colors.black)),
-            SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Container(
-                  width: 220,
-                  height: 50,
-                  child: TextField(
-                    controller: _interpelationController2,
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey[600],
-                    ),
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedInterpelation = int.tryParse(value) ?? 1;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _selectedInterpelation = _selectedInterpelation > 1
-                          ? _selectedInterpelation - 1
-                          : 1;
-                      _interpelationController2.text =
-                          _selectedInterpelation.toString();
-                    });
-                  },
-                  child: Container(
-                    width: 70,
-                    height: 50,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Colors.red[400],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(Icons.remove, color: Colors.white),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _selectedInterpelation++;
-                      _interpelationController2.text =
-                          _selectedInterpelation.toString();
-                    });
-                  },
-                  child: Container(
-                    width: 70,
-                    height: 50,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[600],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(Icons.add, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: fetchInterpelationDetails,
-              child: Text('Pokaż szczegóły'),
-            ),
-            SizedBox(height: 16),
-            _isLoading
-                ? CircularProgressIndicator()
-                : _interpelationDetails == null
-                    ? Text('Wprowadź dane i kliknij "Pokaż szczegóły".')
-                    : _buildInterpelationDetails(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInterpelationDetails() {
-    if (_interpelationDetails == null) {
-      return Text('Brak szczegółów do wyświetlenia.');
-    }
-
-    final attachments =
-        _interpelationDetails!['attachments'] as Iterable<String?>? ?? [];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Tytuł: ${_interpelationDetails!['title']}',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 8),
-        Text('Data wysłania: ${_interpelationDetails!['sentDate']}'),
-        SizedBox(height: 8),
-        Text(
-          'Odpowiedź:',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        Text(_interpelationDetails!['response'] ?? 'Brak odpowiedzi'),
-        SizedBox(height: 8),
-        Text(
-          'Załączniki:',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        ...attachments.map((url) {
-          if (url != null) {
-            return InkWell(
-              onTap: () => _launchUrl(url),
-              child: Text(
-                url,
-                style: TextStyle(
-                    color: Colors.blue, decoration: TextDecoration.underline),
-              ),
-            );
-          } else {
-            return Text('Brak załączników');
-          }
-        }),
-      ],
-    );
-  }
-
-// Funkcja pomocnicza do otwierania URL
-  Future<void> _launchUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      throw Exception('Nie udało się otworzyć linku: $url');
-    }
-  }
-
   Widget _buildCommitteesTab() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -744,40 +804,40 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
         _committeePresidium.isEmpty
             ? Text('Brak danych o prezydium.')
             : SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            columns: [
-              DataColumn(label: Text('Imię i nazwisko')),
-              DataColumn(label: Text('Partia')),
-              DataColumn(label: Text('Funkcja')),
-            ],
-            rows: _committeePresidium.expand((item) {
-              final members = item['members'] as Map<String, int>;
-              final clubs = item['clubs'] as Map<String, List<String>>;
-              final functions = item['functions'] as Map<String, Map<String, String>>;
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns: [
+                    DataColumn(label: Text('Imię i nazwisko')),
+                    DataColumn(label: Text('Partia')),
+                    DataColumn(label: Text('Funkcja')),
+                  ],
+                  rows: _committeePresidium.expand((item) {
+                    final members = item['members'] as Map<String, int>;
+                    final clubs = item['clubs'] as Map<String, List<String>>;
+                    final functions =
+                        item['functions'] as Map<String, Map<String, String>>;
 
-              return members.keys.map((memberName) {
-                final clubEntry = clubs.entries.firstWhere(
-                      (clubEntry) => clubEntry.value.contains(memberName),
-                  orElse: () => MapEntry('Nieznany klub', []),
-                );
-                final clubName = clubEntry.key;
-                final memberFunction = functions[memberName]?['function'] ?? 'Brak funkcji';
+                    return members.keys.map((memberName) {
+                      final clubEntry = clubs.entries.firstWhere(
+                        (clubEntry) => clubEntry.value.contains(memberName),
+                        orElse: () => MapEntry('Nieznany klub', []),
+                      );
+                      final clubName = clubEntry.key;
+                      final memberFunction =
+                          functions[memberName]?['function'] ?? 'Brak funkcji';
 
-                return DataRow(cells: [
-                  DataCell(Text(memberName)), // Imię i nazwisko
-                  DataCell(Text(clubName)),   // Klub
-                  DataCell(Text(memberFunction)), // Funkcja
-                ]);
-              }).toList();
-            }).toList(),
-          ),
-        ),
+                      return DataRow(cells: [
+                        DataCell(Text(memberName)), // Imię i nazwisko
+                        DataCell(Text(clubName)), // Klub
+                        DataCell(Text(memberFunction)), // Funkcja
+                      ]);
+                    }).toList();
+                  }).toList(),
+                ),
+              ),
       ],
     );
   }
-
-
 
   Widget _buildLawsTab() {
     return Padding(
