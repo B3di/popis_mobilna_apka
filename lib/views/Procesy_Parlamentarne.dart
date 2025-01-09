@@ -559,7 +559,7 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
         _committeePresidium = presidium;
       });
     } catch (e) {
-      print('Błąd podczas ładowania prezydium komisji: $e');
+      print('Błąd podczas ładowania składu komisji: $e');
     } finally {
       print(_committeePresidium);
       setState(() {
@@ -804,10 +804,10 @@ class _View2State extends State<View2> with SingleTickerProviderStateMixin {
         Text('Nazwa: ${_committeeDetails!['name']}'),
         Text('Zakres działania: ${_committeeDetails!['scope']}'),
         SizedBox(height: 8),
-        Text('Prezydium Komisji:',
+        Text('Skład komisji:',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         _committeePresidium.isEmpty
-            ? Text('Brak danych o prezydium.')
+            ? Text('Brak danych o składzie.')
             : SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
