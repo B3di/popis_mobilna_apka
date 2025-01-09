@@ -476,13 +476,7 @@ posłów''',
       length: 2,
       child: Column(
         children: [
-          const TabBar(
-            labelColor: Colors.red,
-            tabs: [
-              Tab(text: "Własne"),
-              Tab(text: "Rzeczywiste"),
-            ],
-          ),
+          
           Expanded(
             child: TabBarView(
               children: [
