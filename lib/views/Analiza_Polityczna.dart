@@ -13,6 +13,18 @@ import '../controllers/electionCalc.dart';
 // Tutaj importujemy plik z SejmAPI
 import '../api_wrappers/clubs.dart'; // <-- zmień ścieżkę na właściwą
 
+const Map<String, String> clubNameShortcuts = {
+  'Klub Parlamentarny Prawo i Sprawiedliwość': 'PiS',
+  'Klub Parlamentarny Koalicja Obywatelska - Platforma Obywatelska, Nowoczesna, Inicjatywa Polska, Zieloni':
+      'KO',
+  'Klub Parlamentarny Polskie Stronnictwo Ludowe - Trzecia Droga': 'PSL-TD',
+  'Klub Parlamentarny Polska 2050 - Trzecia Droga': 'Polska2050-TD',
+  'Koło Poselskie Razem': 'Razem',
+  'Koalicyjny Klub Parlamentarny Lewicy (Nowa Lewica, PPS, Unia Pracy)':
+      'Lewica',
+  'Klub Poselski Konfederacja': 'Konfederacja',
+};
+
 /// Główny widget ekranu z zakładkami
 class View3 extends StatefulWidget {
   const View3({Key? key}) : super(key: key);
@@ -72,6 +84,7 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
         final fetchedCoalitions = snapshot.data ?? [];
 
         // Mapowanie danych do wyświetlenia w tabeli
+        // Mapowanie danych do wyświetlenia w tabeli
         final coalitionData = fetchedCoalitions.map((coalition) {
           final totalMembers = coalition
               .map((club) => club['membersCount'] as int)
@@ -84,11 +97,15 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
           final ratio =
               totalMembers > 0 ? (largestMembers / totalMembers) * 100.0 : 0.0;
 
-          // Uwaga: jeśli chcesz pokazywać nazwy klubów, a nie "id",
-          // to zmień klucz na 'name' (lub odwrotnie – zależnie od API).
+          // Skracanie nazw klubów
+          final clubNames = coalition.map((club) {
+            final fullName = club['name'] as String;
+            return clubNameShortcuts[fullName] ?? fullName;
+          }).join(', ');
+
           return {
             'ProcentNajwiekszyKlub': ratio.toStringAsFixed(2),
-            'Kluby': coalition.map((club) => club['name'] as String).join(', '),
+            'Kluby': clubNames,
             'LacznaIloscPoslow': totalMembers,
             'IloscKlubow': coalition.length,
           };
@@ -309,7 +326,7 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
   Widget _buildPieChart(List<Map<String, dynamic>> coalition) {
     final totalMembers = coalition.fold<int>(
       0,
-          (sum, club) => sum + (club['membersCount'] as int),
+      (sum, club) => sum + (club['membersCount'] as int),
     );
 
     final List<Color> expandedColors = [
@@ -342,8 +359,8 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
         radius: 50,
         titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         //badgeWidget: Text(
-          //club['name'],
-          //style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        //club['name'],
+        //style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         //),
         badgePositionPercentageOffset: 1.5,
       );
@@ -398,7 +415,6 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
       ),
     );
   }
-
 
   /// -------------------------------------------------------
   /// Pozostałe zakładki: "Kalkulator Wyborczy"
@@ -484,7 +500,7 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
                   },
                 ),
                 // 2) RZECZYWISTE
-                const RealElectionCalculatorTab(),
+                //const RealElectionCalculatorTab(),
               ],
             ),
           ),
@@ -1520,379 +1536,379 @@ class _ElectionCalculatorTabState extends State<ElectionCalculatorTab> {
 /// ----------------------------------------------------------
 /// Widget "Rzeczywiste" – wczytuje dane z CSV (przykład)
 /// ----------------------------------------------------------
-class RealElectionCalculatorTab extends StatefulWidget {
-  const RealElectionCalculatorTab({Key? key}) : super(key: key);
-
-  @override
-  _RealElectionCalculatorTabState createState() =>
-      _RealElectionCalculatorTabState();
-}
-
-class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
-  final List<int> _availableYears = [2001, 2005, 2007, 2011, 2015, 2019];
-  int? _selectedYear;
-
-  double _threshold = 5.0; // zwykły próg
-  double _thresholdCoalition = 8.0; // próg dla koalicji
-
-  // Nazwy partii znalezione w CSV (kolumny)
-  List<String> _possibleParties = [];
-  // Partie zwolnione z progu
-  List<String> _exemptedParties = [];
-
-  // Surowe dane CSV
-  List<List<dynamic>> _csvRaw = [];
-
-  // Wynik: okręg -> metoda -> partia -> mandaty
-  Map<String, Map<String, Map<String, int>>> _results = {};
-
-  /// Mapa: "1" -> 12, "2" -> 8, itd. (liczba mandatów na okręg)
-  final Map<String, int> seatsPerDistrict = {
-    "1": 12,
-    "2": 8,
-    "3": 14,
-    "4": 12,
-    "5": 13,
-    "6": 15,
-    "7": 12,
-    "8": 12,
-    "9": 10,
-    "10": 9,
-    "11": 12,
-    "12": 8,
-    "13": 14,
-    "14": 10,
-    "15": 9,
-    "16": 10,
-    "17": 9,
-    "18": 12,
-    "19": 20,
-    "20": 12,
-    "21": 12,
-    "22": 11,
-    "23": 15,
-    "24": 14,
-    "25": 12,
-    "26": 14,
-    "27": 9,
-    "28": 7,
-    "29": 9,
-    "30": 9,
-    "31": 12,
-    "32": 9,
-    "33": 16,
-    "34": 8,
-    "35": 10,
-    "36": 12,
-    "37": 9,
-    "38": 9,
-    "39": 10,
-    "40": 8,
-    "41": 12
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("Wybierz rok:",
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          DropdownButton<int>(
-            value: _selectedYear,
-            hint: const Text("Rok"),
-            items: _availableYears.map((y) {
-              return DropdownMenuItem<int>(
-                value: y,
-                child: Text(y.toString()),
-              );
-            }).toList(),
-            onChanged: (val) {
-              setState(() {
-                _selectedYear = val;
-                if (val != null) {
-                  _loadCsv();
-                }
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          const Text("Próg wyborczy (%)",
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          TextField(
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(hintText: ""),
-            onChanged: (val) {
-              final d = double.tryParse(val.replaceAll(',', '.'));
-              if (d != null) setState(() => _threshold = d);
-            },
-          ),
-          const SizedBox(height: 16),
-          const Text("Próg dla koalicji (%)",
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          TextField(
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(hintText: ""),
-            onChanged: (val) {
-              final d = double.tryParse(val.replaceAll(',', '.'));
-              if (d != null) setState(() => _thresholdCoalition = d);
-            },
-          ),
-          const SizedBox(height: 16),
-          const Text("Partie zwolnione z progu (opcjonalne):",
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          _buildExemptedPartiesWidget(),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _calculateResults,
-            child: const Text("Oblicz"),
-          ),
-          const SizedBox(height: 20),
-          _buildResultsTable(),
-        ],
-      ),
-    );
-  }
-
-  /// Wczytuje plik CSV
-  Future<void> _loadCsv() async {
-    if (_selectedYear == null) return;
-
-    try {
-      final filename =
-          'wyniki_gl_na_listy_po_okregach_sejm_utf8_$_selectedYear.csv';
-      final rawString = await rootBundle.loadString('Data/$filename');
-
-      // Starsze lata często ','; nowsze – ';'
-      final separator = (_selectedYear! < 2015) ? ',' : ';';
-
-      final listData = const csv.CsvToListConverter().convert(
-        rawString,
-        fieldDelimiter: separator,
-      );
-
-      setState(() {
-        _csvRaw = listData;
-        _possibleParties = _extractPartyHeaders(listData);
-        _exemptedParties.clear();
-      });
-    } catch (e) {
-      debugPrint("Błąd wczytywania pliku CSV: $e");
-      _csvRaw = [];
-    }
-  }
-
-  /// Szuka kolumn zawierających "Komitet Wyborczy" lub "Koalicyjny"
-  List<String> _extractPartyHeaders(List<List<dynamic>> data) {
-    if (data.isEmpty) return [];
-    final headers = data.first.map((e) => e.toString()).toList();
-
-    return headers.where((colName) {
-      final lower = colName.toLowerCase();
-      return lower.contains("komitet wyborczy") || lower.contains("koalicyjny");
-    }).toList();
-  }
-
-  /// Główna logika obliczeń
-  void _calculateResults() {
-    if (_csvRaw.isEmpty || _selectedYear == null) return;
-
-    final modifiedSeatsPerDistrict = Map<String, int>.from(seatsPerDistrict);
-
-    // Korekty historyczne liczby mandatów (2001–2007)
-    if (_selectedYear! <= 2007) {
-      _adjustSeatsForYear(modifiedSeatsPerDistrict, _selectedYear!);
-    }
-
-    final headerRow = _csvRaw.first.map((e) => e.toString()).toList();
-    final districtIndex = headerRow.indexWhere(
-      (col) => col.toLowerCase() == "okręg",
-    );
-    if (districtIndex < 0) {
-      debugPrint("Nie znaleziono kolumny 'Okręg' w nagłówku CSV.");
-      return;
-    }
-
-    final Map<String, Map<String, double>> votesPerDistrict = {};
-
-    for (var row in _csvRaw.skip(1)) {
-      if (row.length <= districtIndex) continue;
-
-      final districtNumber = row[districtIndex].toString();
-      if (!votesPerDistrict.containsKey(districtNumber)) {
-        votesPerDistrict[districtNumber] = {};
-      }
-
-      for (var partyHeader in _possibleParties) {
-        final colIndex = headerRow.indexOf(partyHeader);
-        if (colIndex < 0 || colIndex >= row.length) continue;
-
-        final value = row[colIndex]?.toString().trim() ?? '';
-        final parsed = double.tryParse(value);
-        final votes = parsed ?? 0.0;
-
-        votesPerDistrict[districtNumber]![partyHeader] =
-            (votesPerDistrict[districtNumber]![partyHeader] ?? 0) + votes;
-      }
-    }
-
-    _results.clear();
-
-    votesPerDistrict.forEach((dist, partiesMap) {
-      final seatsNum = modifiedSeatsPerDistrict[dist] ?? 0;
-      if (seatsNum <= 0) {
-        debugPrint(
-            "Ostrzeżenie: brak liczby mandatów w seatsPerDistrict dla okręgu $dist");
-        return;
-      }
-
-      final totalVotes = partiesMap.values.fold(0.0, (a, b) => a + b);
-      final Map<String, double> filtered = {};
-
-      // Filtrowanie wg progu
-      partiesMap.forEach((partyName, count) {
-        final p = (totalVotes == 0) ? 0 : (count / totalVotes) * 100.0;
-        final isCoalition = partyName.toLowerCase().contains("koalicyjny");
-        final neededThreshold = isCoalition ? _thresholdCoalition : _threshold;
-
-        if (_exemptedParties.contains(partyName) || p >= neededThreshold) {
-          filtered[partyName] = count;
-        }
-      });
-
-      if (filtered.isEmpty) {
-        debugPrint("Okręg $dist: wszystkie partie poniżej progu.");
-        return;
-      }
-
-      final qualifiedParties = filtered.keys.toList();
-      final qualifiedVotes = filtered.values.toList();
-
-      final districtResult = ElectionCalc.chooseMethod(
-        qualifiedDictionary: qualifiedParties,
-        numberOfVotes: qualifiedVotes,
-        year: _selectedYear.toString(),
-        seatsNum: seatsNum,
-      );
-
-      _results[dist] = districtResult;
-    });
-
-    setState(() {
-      // odśwież UI
-    });
-  }
-
-  void _adjustSeatsForYear(Map<String, int> seats, int year) {
-    if (year <= 2007) {
-      seats["12"] = (seats["12"] ?? 0) - 1;
-      seats["13"] = (seats["13"] ?? 0) - 1;
-      seats["18"] = (seats["18"] ?? 0) - 1;
-      seats["19"] = (seats["19"] ?? 0) - 1;
-      seats["20"] = (seats["20"] ?? 0) + 1;
-      seats["23"] = (seats["23"] ?? 0) + 1;
-      seats["28"] = (seats["28"] ?? 0) + 1;
-      seats["40"] = (seats["40"] ?? 0) + 1;
-
-      if (year <= 2001) {
-        seats["1"] = (seats["1"] ?? 0) + 1;
-        seats["8"] = (seats["8"] ?? 0) + 1;
-        seats["11"] = (seats["11"] ?? 0) - 1;
-        seats["12"] = (seats["12"] ?? 0) - 1;
-        seats["14"] = (seats["14"] ?? 0) + 1;
-        seats["19"] = (seats["19"] ?? 0) - 1;
-        seats["30"] = (seats["30"] ?? 0) + 1;
-        seats["34"] = (seats["34"] ?? 0) - 1;
-      }
-    }
-  }
-
-  /// Render tabeli z wynikami — zagregowanymi (suma z wszystkich okręgów).
-  Widget _buildResultsTable() {
-    if (_results.isEmpty) {
-      return const Text("", style: TextStyle(color: Colors.grey));
-    }
-
-    final allParties = <String>{};
-    _results.values.forEach((methodsMap) {
-      methodsMap.values.forEach((mapParties) {
-        allParties.addAll(mapParties.keys);
-      });
-    });
-    final allPartiesList = allParties.toList()..sort();
-
-    final Map<String, Map<String, int>> aggregated = {};
-
-    _results.forEach((district, methodsMap) {
-      methodsMap.forEach((methodName, seatsMap) {
-        aggregated.putIfAbsent(methodName, () => {});
-        seatsMap.forEach((party, seats) {
-          aggregated[methodName]!.update(
-            party,
-            (old) => old + seats,
-            ifAbsent: () => seats,
-          );
-        });
-      });
-    });
-
-    final rows = <DataRow>[];
-    final methodsSorted = aggregated.keys.toList()..sort();
-
-    for (final methodName in methodsSorted) {
-      final seatsMap = aggregated[methodName] ?? {};
-      final cells = <DataCell>[];
-
-      // Pierwsza kolumna: nazwa metody
-      cells.add(DataCell(Text(methodName)));
-
-      // Kolejne kolumny: liczba mandatów danej partii
-      for (final p in allPartiesList) {
-        final seats = seatsMap[p] ?? 0;
-        cells.add(DataCell(Text(seats.toString())));
-      }
-      rows.add(DataRow(cells: cells));
-    }
-
-    final columns = [
-      const DataColumn(label: Text("Metoda")),
-      ...allPartiesList.map((p) => DataColumn(label: Text(p))),
-    ];
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(columns: columns, rows: rows),
-    );
-  }
-
-  /// Checkboxy do zwolnienia partii z progu
-  Widget _buildExemptedPartiesWidget() {
-    if (_possibleParties.isEmpty) {
-      return const Text("");
-    }
-
-    return Column(
-      children: _possibleParties.map((party) {
-        return Row(
-          children: [
-            Checkbox(
-              value: _exemptedParties.contains(party),
-              onChanged: (val) {
-                setState(() {
-                  if (val == true) {
-                    _exemptedParties.add(party);
-                  } else {
-                    _exemptedParties.remove(party);
-                  }
-                });
-              },
-            ),
-            Expanded(child: Text(party)),
-          ],
-        );
-      }).toList(),
-    );
-  }
-}
+// class RealElectionCalculatorTab extends StatefulWidget {
+//   const RealElectionCalculatorTab({Key? key}) : super(key: key);
+//
+//   @override
+//   _RealElectionCalculatorTabState createState() =>
+//       _RealElectionCalculatorTabState();
+// }
+//
+// class _RealElectionCalculatorTabState extends State<RealElectionCalculatorTab> {
+//   final List<int> _availableYears = [2001, 2005, 2007, 2011, 2015, 2019];
+//   int? _selectedYear;
+//
+//   double _threshold = 5.0; // zwykły próg
+//   double _thresholdCoalition = 8.0; // próg dla koalicji
+//
+//   // Nazwy partii znalezione w CSV (kolumny)
+//   List<String> _possibleParties = [];
+//   // Partie zwolnione z progu
+//   List<String> _exemptedParties = [];
+//
+//   // Surowe dane CSV
+//   List<List<dynamic>> _csvRaw = [];
+//
+//   // Wynik: okręg -> metoda -> partia -> mandaty
+//   Map<String, Map<String, Map<String, int>>> _results = {};
+//
+//   /// Mapa: "1" -> 12, "2" -> 8, itd. (liczba mandatów na okręg)
+//   final Map<String, int> seatsPerDistrict = {
+//     "1": 12,
+//     "2": 8,
+//     "3": 14,
+//     "4": 12,
+//     "5": 13,
+//     "6": 15,
+//     "7": 12,
+//     "8": 12,
+//     "9": 10,
+//     "10": 9,
+//     "11": 12,
+//     "12": 8,
+//     "13": 14,
+//     "14": 10,
+//     "15": 9,
+//     "16": 10,
+//     "17": 9,
+//     "18": 12,
+//     "19": 20,
+//     "20": 12,
+//     "21": 12,
+//     "22": 11,
+//     "23": 15,
+//     "24": 14,
+//     "25": 12,
+//     "26": 14,
+//     "27": 9,
+//     "28": 7,
+//     "29": 9,
+//     "30": 9,
+//     "31": 12,
+//     "32": 9,
+//     "33": 16,
+//     "34": 8,
+//     "35": 10,
+//     "36": 12,
+//     "37": 9,
+//     "38": 9,
+//     "39": 10,
+//     "40": 8,
+//     "41": 12
+//   };
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return SingleChildScrollView(
+//       padding: const EdgeInsets.all(16),
+//       child: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           const Text("Wybierz rok:",
+//               style: TextStyle(fontWeight: FontWeight.bold)),
+//           DropdownButton<int>(
+//             value: _selectedYear,
+//             hint: const Text("Rok"),
+//             items: _availableYears.map((y) {
+//               return DropdownMenuItem<int>(
+//                 value: y,
+//                 child: Text(y.toString()),
+//               );
+//             }).toList(),
+//             onChanged: (val) {
+//               setState(() {
+//                 _selectedYear = val;
+//                 if (val != null) {
+//                   _loadCsv();
+//                 }
+//               });
+//             },
+//           ),
+//           const SizedBox(height: 16),
+//           const Text("Próg wyborczy (%)",
+//               style: TextStyle(fontWeight: FontWeight.bold)),
+//           TextField(
+//             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+//             decoration: const InputDecoration(hintText: ""),
+//             onChanged: (val) {
+//               final d = double.tryParse(val.replaceAll(',', '.'));
+//               if (d != null) setState(() => _threshold = d);
+//             },
+//           ),
+//           const SizedBox(height: 16),
+//           const Text("Próg dla koalicji (%)",
+//               style: TextStyle(fontWeight: FontWeight.bold)),
+//           TextField(
+//             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+//             decoration: const InputDecoration(hintText: ""),
+//             onChanged: (val) {
+//               final d = double.tryParse(val.replaceAll(',', '.'));
+//               if (d != null) setState(() => _thresholdCoalition = d);
+//             },
+//           ),
+//           const SizedBox(height: 16),
+//           const Text("Partie zwolnione z progu (opcjonalne):",
+//               style: TextStyle(fontWeight: FontWeight.bold)),
+//           _buildExemptedPartiesWidget(),
+//           const SizedBox(height: 20),
+//           ElevatedButton(
+//             onPressed: _calculateResults,
+//             child: const Text("Oblicz"),
+//           ),
+//           const SizedBox(height: 20),
+//           _buildResultsTable(),
+//         ],
+//       ),
+//     );
+//   }
+//
+//   /// Wczytuje plik CSV
+//   Future<void> _loadCsv() async {
+//     if (_selectedYear == null) return;
+//
+//     try {
+//       final filename =
+//           'wyniki_gl_na_listy_po_okregach_sejm_utf8_$_selectedYear.csv';
+//       final rawString = await rootBundle.loadString('Data/$filename');
+//
+//       // Starsze lata często ','; nowsze – ';'
+//       final separator = (_selectedYear! < 2015) ? ',' : ';';
+//
+//       final listData = const csv.CsvToListConverter().convert(
+//         rawString,
+//         fieldDelimiter: separator,
+//       );
+//
+//       setState(() {
+//         _csvRaw = listData;
+//         _possibleParties = _extractPartyHeaders(listData);
+//         _exemptedParties.clear();
+//       });
+//     } catch (e) {
+//       debugPrint("Błąd wczytywania pliku CSV: $e");
+//       _csvRaw = [];
+//     }
+//   }
+//
+//   /// Szuka kolumn zawierających "Komitet Wyborczy" lub "Koalicyjny"
+//   List<String> _extractPartyHeaders(List<List<dynamic>> data) {
+//     if (data.isEmpty) return [];
+//     final headers = data.first.map((e) => e.toString()).toList();
+//
+//     return headers.where((colName) {
+//       final lower = colName.toLowerCase();
+//       return lower.contains("komitet wyborczy") || lower.contains("koalicyjny");
+//     }).toList();
+//   }
+//
+//   /// Główna logika obliczeń
+//   void _calculateResults() {
+//     if (_csvRaw.isEmpty || _selectedYear == null) return;
+//
+//     final modifiedSeatsPerDistrict = Map<String, int>.from(seatsPerDistrict);
+//
+//     // Korekty historyczne liczby mandatów (2001–2007)
+//     if (_selectedYear! <= 2007) {
+//       _adjustSeatsForYear(modifiedSeatsPerDistrict, _selectedYear!);
+//     }
+//
+//     final headerRow = _csvRaw.first.map((e) => e.toString()).toList();
+//     final districtIndex = headerRow.indexWhere(
+//       (col) => col.toLowerCase() == "okręg",
+//     );
+//     if (districtIndex < 0) {
+//       debugPrint("Nie znaleziono kolumny 'Okręg' w nagłówku CSV.");
+//       return;
+//     }
+//
+//     final Map<String, Map<String, double>> votesPerDistrict = {};
+//
+//     for (var row in _csvRaw.skip(1)) {
+//       if (row.length <= districtIndex) continue;
+//
+//       final districtNumber = row[districtIndex].toString();
+//       if (!votesPerDistrict.containsKey(districtNumber)) {
+//         votesPerDistrict[districtNumber] = {};
+//       }
+//
+//       for (var partyHeader in _possibleParties) {
+//         final colIndex = headerRow.indexOf(partyHeader);
+//         if (colIndex < 0 || colIndex >= row.length) continue;
+//
+//         final value = row[colIndex]?.toString().trim() ?? '';
+//         final parsed = double.tryParse(value);
+//         final votes = parsed ?? 0.0;
+//
+//         votesPerDistrict[districtNumber]![partyHeader] =
+//             (votesPerDistrict[districtNumber]![partyHeader] ?? 0) + votes;
+//       }
+//     }
+//
+//     _results.clear();
+//
+//     votesPerDistrict.forEach((dist, partiesMap) {
+//       final seatsNum = modifiedSeatsPerDistrict[dist] ?? 0;
+//       if (seatsNum <= 0) {
+//         debugPrint(
+//             "Ostrzeżenie: brak liczby mandatów w seatsPerDistrict dla okręgu $dist");
+//         return;
+//       }
+//
+//       final totalVotes = partiesMap.values.fold(0.0, (a, b) => a + b);
+//       final Map<String, double> filtered = {};
+//
+//       // Filtrowanie wg progu
+//       partiesMap.forEach((partyName, count) {
+//         final p = (totalVotes == 0) ? 0 : (count / totalVotes) * 100.0;
+//         final isCoalition = partyName.toLowerCase().contains("koalicyjny");
+//         final neededThreshold = isCoalition ? _thresholdCoalition : _threshold;
+//
+//         if (_exemptedParties.contains(partyName) || p >= neededThreshold) {
+//           filtered[partyName] = count;
+//         }
+//       });
+//
+//       if (filtered.isEmpty) {
+//         debugPrint("Okręg $dist: wszystkie partie poniżej progu.");
+//         return;
+//       }
+//
+//       final qualifiedParties = filtered.keys.toList();
+//       final qualifiedVotes = filtered.values.toList();
+//
+//       final districtResult = ElectionCalc.chooseMethod(
+//         qualifiedDictionary: qualifiedParties,
+//         numberOfVotes: qualifiedVotes,
+//         year: _selectedYear.toString(),
+//         seatsNum: seatsNum,
+//       );
+//
+//       _results[dist] = districtResult;
+//     });
+//
+//     setState(() {
+//       // odśwież UI
+//     });
+//   }
+//
+//   void _adjustSeatsForYear(Map<String, int> seats, int year) {
+//     if (year <= 2007) {
+//       seats["12"] = (seats["12"] ?? 0) - 1;
+//       seats["13"] = (seats["13"] ?? 0) - 1;
+//       seats["18"] = (seats["18"] ?? 0) - 1;
+//       seats["19"] = (seats["19"] ?? 0) - 1;
+//       seats["20"] = (seats["20"] ?? 0) + 1;
+//       seats["23"] = (seats["23"] ?? 0) + 1;
+//       seats["28"] = (seats["28"] ?? 0) + 1;
+//       seats["40"] = (seats["40"] ?? 0) + 1;
+//
+//       if (year <= 2001) {
+//         seats["1"] = (seats["1"] ?? 0) + 1;
+//         seats["8"] = (seats["8"] ?? 0) + 1;
+//         seats["11"] = (seats["11"] ?? 0) - 1;
+//         seats["12"] = (seats["12"] ?? 0) - 1;
+//         seats["14"] = (seats["14"] ?? 0) + 1;
+//         seats["19"] = (seats["19"] ?? 0) - 1;
+//         seats["30"] = (seats["30"] ?? 0) + 1;
+//         seats["34"] = (seats["34"] ?? 0) - 1;
+//       }
+//     }
+//   }
+//
+//   /// Render tabeli z wynikami — zagregowanymi (suma z wszystkich okręgów).
+//   Widget _buildResultsTable() {
+//     if (_results.isEmpty) {
+//       return const Text("", style: TextStyle(color: Colors.grey));
+//     }
+//
+//     final allParties = <String>{};
+//     _results.values.forEach((methodsMap) {
+//       methodsMap.values.forEach((mapParties) {
+//         allParties.addAll(mapParties.keys);
+//       });
+//     });
+//     final allPartiesList = allParties.toList()..sort();
+//
+//     final Map<String, Map<String, int>> aggregated = {};
+//
+//     _results.forEach((district, methodsMap) {
+//       methodsMap.forEach((methodName, seatsMap) {
+//         aggregated.putIfAbsent(methodName, () => {});
+//         seatsMap.forEach((party, seats) {
+//           aggregated[methodName]!.update(
+//             party,
+//             (old) => old + seats,
+//             ifAbsent: () => seats,
+//           );
+//         });
+//       });
+//     });
+//
+//     final rows = <DataRow>[];
+//     final methodsSorted = aggregated.keys.toList()..sort();
+//
+//     for (final methodName in methodsSorted) {
+//       final seatsMap = aggregated[methodName] ?? {};
+//       final cells = <DataCell>[];
+//
+//       // Pierwsza kolumna: nazwa metody
+//       cells.add(DataCell(Text(methodName)));
+//
+//       // Kolejne kolumny: liczba mandatów danej partii
+//       for (final p in allPartiesList) {
+//         final seats = seatsMap[p] ?? 0;
+//         cells.add(DataCell(Text(seats.toString())));
+//       }
+//       rows.add(DataRow(cells: cells));
+//     }
+//
+//     final columns = [
+//       const DataColumn(label: Text("Metoda")),
+//       ...allPartiesList.map((p) => DataColumn(label: Text(p))),
+//     ];
+//
+//     return SingleChildScrollView(
+//       scrollDirection: Axis.horizontal,
+//       child: DataTable(columns: columns, rows: rows),
+//     );
+//   }
+//
+//   /// Checkboxy do zwolnienia partii z progu
+//   Widget _buildExemptedPartiesWidget() {
+//     if (_possibleParties.isEmpty) {
+//       return const Text("");
+//     }
+//
+//     return Column(
+//       children: _possibleParties.map((party) {
+//         return Row(
+//           children: [
+//             Checkbox(
+//               value: _exemptedParties.contains(party),
+//               onChanged: (val) {
+//                 setState(() {
+//                   if (val == true) {
+//                     _exemptedParties.add(party);
+//                   } else {
+//                     _exemptedParties.remove(party);
+//                   }
+//                 });
+//               },
+//             ),
+//             Expanded(child: Text(party)),
+//           ],
+//         );
+//       }).toList(),
+//     );
+//   }
+// }
