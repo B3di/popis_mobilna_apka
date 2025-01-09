@@ -140,7 +140,8 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
         DataColumn(
           label: Expanded(
             child: Text(
-              'Procent Największy Klub',
+              '''Procent, jaki stanowi
+największy klub''',
               softWrap: true,
               textAlign: TextAlign.center,
               style: TextStyle(fontWeight: FontWeight.bold),
@@ -160,7 +161,8 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
         DataColumn(
           label: Expanded(
             child: Text(
-              'Łączna Ilość Posłów',
+              '''Łączna ilość 
+posłów''',
               softWrap: true,
               textAlign: TextAlign.center,
               style: TextStyle(fontWeight: FontWeight.bold),
@@ -170,7 +172,7 @@ class _View3State extends State<View3> with SingleTickerProviderStateMixin {
         DataColumn(
           label: Expanded(
             child: Text(
-              'Ilość Klubów',
+              'Ilość klubów',
               softWrap: true,
               textAlign: TextAlign.center,
               style: TextStyle(fontWeight: FontWeight.bold),
